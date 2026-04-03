@@ -27,11 +27,18 @@ Este frontend está diseñado para conectarse a un **Backend externo**. Asegúra
 
 ### Configuración de Variables de Entorno
 
-Crea un archivo `.env` en la raíz del proyecto y define la variable:
+Crea un archivo `.env` en la raíz del proyecto y define la variable según tu entorno:
 
 ```bash
-VITE_API_URL=https://vibe-route-backend-url.onrender.com/api/v1
+# Para trabajo LOCAL (Si tienes el backend corriendo en tu PC):
+VITE_API_URL=http://localhost:5000/api/v1
+
+# Para trabajo con el BACKEND EN LA NUBE (Recomendado para el equipo):
+VITE_API_URL=https://tu-api-en-render.onrender.com/api/v1
 ```
+
+> [!IMPORTANT]
+> Nunca compartas el archivo `.env` real en GitHub. El archivo `.env.example` sirve como guía para que cada integrante configure su propia conexión.
 
 > [!IMPORTANT]
 > Todas las peticiones están pre-configuradas con interceptores de Axios para incluir el Bearer Token automáticamente desde el `useAuthStore`.
