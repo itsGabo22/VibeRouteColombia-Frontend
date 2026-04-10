@@ -18,8 +18,8 @@ import {
   Settings,
   HelpCircle
 } from 'lucide-react';
-import { useAuthStore } from '../app/store/authStore';
-import api from '../shared/lib/api';
+import { useAuthStore } from '../../app/store/authStore';
+import api from '../../shared/lib/api';
 
 // Interface matching the backend /analytics/delivery-summary response fields
 interface DeliveryStats {
