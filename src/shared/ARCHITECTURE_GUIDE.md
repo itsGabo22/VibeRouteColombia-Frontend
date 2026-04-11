@@ -6,7 +6,7 @@ Esta rama introduce una estructura basada en **Clean Architecture** y **Atomic D
 
 ## 📂 Estructura de Carpetas
 
-### 1. `src/app/`
+### 1. `src/app/`  
 **Propósito:** Punto de entrada y configuración global de la aplicación.
 -   **`App.tsx`**: Orquestador de rutas.
 -   **`store/`**: Estado global (Zustand). Aquí vive la persistencia de la sesión.
