@@ -1,0 +1,304 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Search, Filter, MapPin, Phone, User, Package, Clock, 
+  CheckCircle2, XCircle, ChevronRight, Navigation, Loader2,
+  Calendar, Info, AlertTriangle, TrendingUp, X
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import api from '../../shared/lib/api';
+
+interface Order {
+  id: number;
+  clientReference: string;
+  clientName: string;
+  address: string;
+  city: string;
+  status: 'PENDING' | 'ON_ROUTE' | 'DELIVERED' | 'NOVEDAD' | 'CANCELED';
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  createdAt?: string;
+}
+
+export const OrdersManagementModule: React.FC<{ driverName: string, forceCity?: string, onUpdate?: () => void }> = ({ driverName, forceCity, onUpdate }) => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [driverName, forceCity]);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const { data: batches } = await api.get('/batches');
+      
+      let allOrders: Order[] = [];
+
+      if (driverName) {
+        const myBatch = batches.find((b: any) => 
+          b.driver && b.driver.name.toLowerCase() === driverName.toLowerCase() && b.status !== 'COMPLETED'
+        );
+        allOrders = myBatch?.orders || [];
+      } else {
+        batches.forEach((b: any) => {
+          if (b.orders) allOrders.push(...b.orders);
+        });
+      }
+      
+      if (forceCity) {
+        allOrders = allOrders.filter(o => o.city.toLowerCase() === forceCity.toLowerCase());
+      }
+
+      setOrders(allOrders);
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (orderId: number, nextStatus: string) => {
+    try {
+      setIsUpdating(true);
+      await api.patch(`/orders/${orderId}/status?status=${nextStatus}`);
+      
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: nextStatus as any } : o));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: nextStatus as any } : null);
+      }
+      if (onUpdate) onUpdate();
+    } catch (err: any) {
+      console.error("Error updating order:", err);
+      alert("Error al actualizar: " + (err.response?.data?.error || "Servidor no disponible"));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const statusMap: any = {
+    'PENDING': { label: 'PENDIENTE', color: 'bg-slate-100 text-slate-600', icon: Clock },
+    'ON_ROUTE': { label: 'EN RUTA', color: 'bg-blue-50 text-blue-600', icon: Navigation },
+    'DELIVERED': { label: 'ENTREGADO', color: 'bg-green-50 text-green-600', icon: CheckCircle2 },
+    'NOVEDAD': { label: 'NOVEDAD', color: 'bg-amber-50 text-amber-600', icon: AlertTriangle },
+    'CANCELED': { label: 'CANCELADO', color: 'bg-red-50 text-red-600', icon: XCircle },
+  };
+
+  const priorityMap: any = {
+    'HIGH': { label: 'ALTA', color: 'bg-red-50 text-red-500' },
+    'MEDIUM': { label: 'MEDIA', color: 'bg-amber-50 text-amber-500' },
+    'LOW': { label: 'BAJA', color: 'bg-blue-50 text-blue-500' },
+  };
+
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = 
+      order.clientReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilter = filterStatus === 'ALL' || order.status === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full md:w-96 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-green-500 transition-colors" size={18} />
+          <input 
+            type="text"
+            placeholder="Buscar por referencia, cliente o dirección..."
+            className="w-full pl-12 pr-6 py-4 bg-white border border-slate-100 rounded-3xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-green-500/5 focus:border-green-500/20 transition-all shadow-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
+          {['ALL', 'PENDING', 'ON_ROUTE', 'DELIVERED'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilterStatus(s)}
+              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                filterStatus === s 
+                  ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' 
+                  : 'bg-white text-slate-400 hover:bg-slate-50 border border-slate-50'
+              }`}
+            >
+              {s === 'ALL' ? 'TODOS' : statusMap[s]?.label || s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pedido</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destino Operativo</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Prioridad</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado</th>
+                <th className="px-8 py-6"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {loading ? (
+                <tr><td colSpan={5} className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Cargando operaciones...</td></tr>
+              ) : filteredOrders.length === 0 ? (
+                <tr><td colSpan={5} className="p-32 text-center">
+                  <Package className="mx-auto text-slate-200 mb-2" size={48} />
+                  <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sin registros encontrados</p>
+                </td></tr>
+              ) : (
+                filteredOrders.map((order) => (
+                  <motion.tr 
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    key={order.id} 
+                    className="hover:bg-slate-50/50 transition-all cursor-pointer group"
+                    onClick={() => setSelectedOrder(order)}
+                  >
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                         <div className="w-10 h-10 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center font-black text-xs shadow-sm shadow-green-100 group-hover:scale-110 transition-transform">
+                            #{order.id}
+                         </div>
+                         <div>
+                            <p className="font-black text-slate-900 tracking-tighter text-sm italic">{order.clientReference}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Recibido: 08:30 AM</p>
+                         </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                       <div className="flex items-start gap-2">
+                          <MapPin size={12} className="text-slate-300 mt-1" />
+                          <div>
+                             <p className="text-sm font-black text-slate-700 tracking-tight">{order.address}</p>
+                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{order.city}</p>
+                          </div>
+                       </div>
+                    </td>
+                    <td className="px-8 py-6">
+                       <div className="flex justify-center">
+                         <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${priorityMap[order.priority]?.color || 'bg-slate-100 text-slate-400'}`}>
+                           {priorityMap[order.priority]?.label || order.priority}
+                         </span>
+                       </div>
+                    </td>
+                    <td className="px-8 py-6">
+                       <div className="flex justify-center">
+                         <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-sm ${statusMap[order.status]?.color || 'bg-slate-50 text-slate-400'}`}>
+                           {React.createElement(statusMap[order.status]?.icon || Info, { size: 10 })}
+                           {statusMap[order.status]?.label || order.status}
+                         </span>
+                       </div>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                       <button className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm">
+                          <ChevronRight size={16} />
+                       </button>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedOrder(null)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden relative z-10"
+            >
+              <div className="p-12 space-y-10">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-100">
+                      <Package size={12} /> Ficha Técnica de Pedido
+                    </div>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic">#{selectedOrder.id} • {selectedOrder.clientReference}</h2>
+                  </div>
+                  <button onClick={() => setSelectedOrder(null)} className="p-4 bg-slate-50 text-slate-400 rounded-3xl hover:bg-slate-100 transition-all">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-8 ring-1 ring-slate-100 p-8 rounded-[2rem] bg-slate-50/30">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Cliente</p>
+                    <p className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2"><User size={16} className="text-slate-300" /> {selectedOrder.clientName}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Destino</p>
+                    <p className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2"><MapPin size={16} className="text-slate-300" /> {selectedOrder.address}</p>
+                    <p className="text-xs text-slate-400 font-bold uppercase">{selectedOrder.city}, COLOMBIA</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Trazabilidad de Entrega</h4>
+                  <div className="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
+                    <div className="flex gap-6 relative z-10">
+                       <div className="w-6 h-6 bg-green-500 rounded-full border-4 border-white shadow-xl shadow-green-100 flex items-center justify-center"></div>
+                       <div className="space-y-1 bg-white p-4 rounded-3xl border border-slate-50 shadow-sm flex-1">
+                          <p className="text-xs font-black text-slate-900 tracking-tight">Recibido en Centro Logístico</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase italic">Bogotá • 08:30 AM</p>
+                       </div>
+                    </div>
+                    <div className="flex gap-6 relative z-10">
+                       <div className={`w-6 h-6 ${selectedOrder.status !== 'PENDING' ? 'bg-green-500 shadow-green-100' : 'bg-slate-200'} rounded-full border-4 border-white shadow-xl flex items-center justify-center`}></div>
+                       <div className="space-y-1 bg-white p-4 rounded-3xl border border-slate-50 shadow-sm flex-1">
+                          <p className="text-xs font-black text-slate-900 tracking-tight">En Ruta de Entrega</p>
+                          <p className={`text-[10px] font-bold uppercase italic ${selectedOrder.status !== 'PENDING' ? 'text-slate-400' : 'text-slate-200'}`}>Asignado a Conductor</p>
+                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {driverName && (
+                  <div className="grid grid-cols-2 gap-4">
+                     <button 
+                        disabled={isUpdating || selectedOrder.status === 'DELIVERED'}
+                        onClick={() => handleUpdateStatus(selectedOrder.id, 'DELIVERED')}
+                        className={`py-6 rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${
+                          selectedOrder.status === 'DELIVERED' 
+                            ? 'bg-green-500 text-white opacity-50 cursor-not-allowed' 
+                            : 'bg-green-500 text-white hover:bg-green-600 shadow-green-200'
+                        }`}
+                     >
+                        {isUpdating ? <Loader2 size={20} className="animate-spin" /> : <><CheckCircle2 size={20} /> Confirmar Entrega</>}
+                     </button>
+                     <button 
+                        disabled={isUpdating || selectedOrder.status === 'DELIVERED'}
+                        onClick={() => handleUpdateStatus(selectedOrder.id, 'NOVEDAD')}
+                        className="py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-slate-200 transition-all hover:bg-slate-800 active:scale-95"
+                     >
+                        <AlertTriangle size={20} className="text-amber-500" /> Reportar Novedad
+                     </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};

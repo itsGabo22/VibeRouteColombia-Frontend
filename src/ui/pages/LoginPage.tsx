@@ -48,7 +48,7 @@ export const LoginPage: React.FC = () => {
   const roles = [
     { id: 'ADMIN', label: 'Admin', icon: Settings, color: 'blue' },
     { id: 'LOGISTICS', label: 'Logística', icon: Truck, color: 'green' },
-    { id: 'DRIVER', label: 'Logística Operativa', icon: User, color: 'amber' },
+    { id: 'DRIVER', label: 'Conductor', icon: User, color: 'amber' },
   ];
 
   return (
