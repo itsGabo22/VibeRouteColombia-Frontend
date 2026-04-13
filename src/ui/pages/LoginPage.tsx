@@ -1,158 +1,199 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Shield, Package, Bike, ArrowRight, Clock, Globe } from 'lucide-react';
-import hubBg from '../../shared/assets/hub-bg.png';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, LogIn, Loader2, Package, ShieldCheck, Truck, Settings, User } from 'lucide-react';
+import { useAuthStore } from '../../app/store/authStore';
+import api from '../../shared/lib/api';
 import logo from '../../shared/assets/viberoute-logo.png';
-import { cn } from '../../shared/lib/utils';
-
-const PORTALS = [
-  {
-    id: 'admin',
-    title: 'Centro de Control',
-    subtitle: 'NIVEL: SEGURIDAD ESTRATÉGICA',
-    role: 'Administrador',
-    icon: Shield,
-    color: 'from-blue-600 to-indigo-700',
-    path: '/login/admin',
-    badge: 'ID: ADMIN_ACS'
-  },
-  {
-    id: 'logistics',
-    title: 'Gestión Operativa',
-    subtitle: 'NIVEL: SUMINISTRO & CARGA',
-    role: 'Logística',
-    icon: Package,
-    color: 'from-emerald-600 to-teal-700',
-    path: '/login/logistics',
-    badge: 'ID: LOGISTICS_ACS'
-  },
-  {
-    id: 'driver',
-    title: 'Entrega en Ruta',
-    subtitle: 'NIVEL: OPERACIÓN DE CAMPO',
-    role: 'Repartidor',
-    icon: Bike,
-    color: 'from-orange-600 to-red-700',
-    path: '/login/driver',
-    badge: 'ID: DRIVER_ACS'
-  }
-];
 
 export const LoginPage: React.FC = () => {
+  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'LOGISTICS' | 'DRIVER'>('LOGISTICS');
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError]       = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const setAuth  = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      // SOLO enviamos email y password para evitar ruido en el Network Tab
+      const { data } = await api.post('/auth/login', { email, password });
+      
+      // Obtenemos el token y los datos del usuario de la respuesta
+      const { token, user } = data;
+      const tokenRole = user.role.replace('ROLE_', '');
+
+      // Validación cruzada para seguridad operativa
+      if (tokenRole !== selectedRole && !(tokenRole === 'ADMIN' && selectedRole === 'LOGISTICS')) {
+        setError(`Credenciales válidas, pero no tienes permisos de ${selectedRole}.`);
+        setIsLoading(false);
+        return;
+      }
+
+      setAuth(token, tokenRole, email, user.name);
+      navigate('/');
+    } catch (err: any) {
+      setError('Error de autenticación. Verifica tus credenciales.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const roles = [
+    { id: 'ADMIN', label: 'Admin', icon: Settings, color: 'blue' },
+    { id: 'LOGISTICS', label: 'Logística', icon: Truck, color: 'green' },
+    { id: 'DRIVER', label: 'Logística Operativa', icon: User, color: 'amber' },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#020617] text-white overflow-hidden font-sans relative selection:bg-primary/30">
-      {/* Background Cinematic layer */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-30 transform scale-110 motion-safe:animate-[pulse_10s_ease-in-out_infinite]"
-        style={{ backgroundImage: `url(${hubBg})` }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-tr from-[#020617] via-[#020617]/80 to-transparent" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans p-6 selection:bg-green-100">
+      
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-green-100/40 rounded-full blur-3xl opacity-50" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-50 rounded-full blur-3xl opacity-50" />
+      </div>
 
-      {/* Header Info (Premium feel) */}
-      <header className="relative z-20 flex justify-between items-center p-8">
-        <div className="flex items-center gap-4">
-          <img 
-            src={logo} 
-            alt="VibeRoute Logo" 
-            className="w-12 h-12 rounded-xl shadow-lg shadow-primary/30 transform hover:rotate-12 transition-transform cursor-pointer"
-          />
-          <div>
-            <span className="text-xl font-black tracking-tighter block leading-none">VibeRoute</span>
-            <span className="text-[9px] uppercase tracking-[0.4em] text-primary/70 font-bold">Operaciones Colombia</span>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-[1100px] h-auto lg:h-[700px] bg-white rounded-[3rem] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col lg:flex-row relative z-10 border border-slate-100"
+      >
+        {/* Banner Lateral */}
+        <div className="hidden lg:flex lg:w-2/5 bg-slate-900 p-16 flex-col justify-between relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20">
+             <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-transparent" />
+          </div>
+          
+          <div className="relative z-10">
+            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-10 shadow-2xl">
+              <img src={logo} alt="VibeRoute" className="w-8 h-8" />
+            </div>
+            
+            <h2 className="text-white text-4xl font-black tracking-tighter leading-tight mb-6">
+              VibeRoute <br/><span className="text-green-400">Colombia</span>
+            </h2>
+            <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-xs">
+              Portal centralizado de sincronización logística nacional. Acceso restringido para personal autorizado.
+            </p>
+          </div>
+
+          <div className="relative z-10 space-y-4">
+             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
+                <div className="flex items-center gap-2 text-green-400 text-[10px] font-black uppercase tracking-widest mb-1">
+                   <ShieldCheck size={14} /> Security Compliance
+                </div>
+                <p className="text-[10px] text-slate-500">Sesión encriptada mediante AES-256 JWT</p>
+             </div>
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">
-          <div className="flex items-center gap-2">
-            <Clock size={12} className="text-primary" />
-            <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+        {/* Formulario */}
+        <div className="flex-1 p-12 lg:p-20 flex flex-col justify-center bg-white">
+          <div className="mb-10 text-center lg:text-left">
+            <h1 className="text-3xl font-black text-slate-900 tracking-tighter mb-2">Ingreso al Sistema</h1>
+            <p className="text-slate-400 text-sm font-medium">Selecciona tu rol operativo para continuar</p>
           </div>
-          <div className="hidden lg:flex items-center gap-2">
-            <Globe size={12} className="text-primary" />
-            <span>Red Nacional - 001</span>
+
+          {/* Selector de Rol Visual */}
+          <div className="grid grid-cols-3 gap-4 mb-10">
+            {roles.map((role) => (
+              <button
+                key={role.id}
+                onClick={() => setSelectedRole(role.id as any)}
+                className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${
+                  selectedRole === role.id 
+                  ? 'border-green-500 bg-green-50/50' 
+                  : 'border-slate-50 bg-slate-50/50 hover:border-slate-200'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                  selectedRole === role.id ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-white text-slate-400 shadow-sm'
+                }`}>
+                  <role.icon size={20} />
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${
+                  selectedRole === role.id ? 'text-green-600' : 'text-slate-400'
+                }`}>{role.label}</span>
+                
+                {selectedRole === role.id && (
+                  <motion.div layoutId="role-indicator" className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                )}
+              </button>
+            ))}
           </div>
-          <div className="px-3 py-1 border border-white/10 rounded-full bg-white/5">
-            Plataforma v1.0
-          </div>
-        </div>
-      </header>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-8 py-12 flex flex-col items-center justify-center min-h-[80vh]">
-        <div className="text-center mb-20">
-          <motion.div
-             initial={{ opacity: 0, scale: 0.9 }}
-             animate={{ opacity: 1, scale: 1 }}
-             className="inline-block px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.4em] mb-6"
-          >
-             Centro Digital de Suministros
-          </motion.div>
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-7xl md:text-8xl font-black tracking-tighter mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500"
-          >
-            Bienvenido al <span className="text-white italic">Futuro.</span>
-          </motion.h1>
-          <p className="text-gray-400 text-lg font-medium max-w-2xl mx-auto leading-relaxed">
-            Selecciona tu interfaz operativa para iniciar la sincronización <br/> de la flota en tiempo real.
-          </p>
-        </div>
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold border border-red-100 text-center"
+              >
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
-          {PORTALS.map((portal, idx) => (
-            <motion.div
-              key={portal.id}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              onClick={() => navigate(portal.path)}
-              className="group cursor-pointer relative"
-            >
-              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-[2.5rem] transform group-hover:scale-[1.02] transition-transform duration-500" />
-              
-              <div className="relative p-10 h-full border border-white/5 bg-[#0a0c14]/40 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden group-hover:border-primary/30 transition-all duration-500">
-                <div className="flex justify-between items-start mb-12">
-                  <div className={cn("p-4 rounded-2xl bg-white/5 text-gray-400 group-hover:text-white transition-colors")}>
-                    <portal.icon size={32} strokeWidth={1.5} />
-                  </div>
-                  <span className="text-[10px] font-black text-white/20 group-hover:text-primary transition-colors tracking-widest uppercase">
-                    {portal.badge}
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  <span className="text-[10px] font-black text-primary tracking-[0.3em] uppercase">
-                    {portal.subtitle}
-                  </span>
-                  <h2 className="text-4xl font-black tracking-tighter text-white">
-                    {portal.title}
-                  </h2>
-                  <p className="text-gray-500 font-bold text-sm uppercase tracking-widest group-hover:text-gray-300 transition-colors">
-                    {portal.role}
-                  </p>
-                </div>
-
-                <div className="mt-12 flex items-center gap-2 text-primary font-black uppercase text-[10px] tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-y-4 group-hover:translate-y-0">
-                  Acceder al Sistema <ArrowRight size={14} />
-                </div>
-
-                {/* Decorative Blobs */}
-                <div className={cn("absolute -bottom-12 -right-12 w-32 h-32 blur-[80px] rounded-full opacity-0 group-hover:opacity-40 transition-opacity bg-primary")} />
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Credential ID</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 text-slate-900 pl-12 pr-6 py-4 rounded-xl focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/5 outline-none transition-all placeholder:text-slate-300 text-sm font-medium"
+                  placeholder="usuario@viberoute.com"
+                  required
+                />
               </div>
-            </motion.div>
-          ))}
-        </div>
-      </main>
+            </div>
 
-      <footer className="relative z-10 p-12 text-center">
-        <div className="w-16 h-[2px] bg-primary/20 mx-auto mb-6" />
-        <p className="text-gray-500 text-[9px] font-black uppercase tracking-[0.5em]">
-          VibeRoute Global Systems © 2026 • Bogota Node
-        </p>
-      </footer>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Secret Pass</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 text-slate-900 pl-12 pr-6 py-4 rounded-xl focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/5 outline-none transition-all placeholder:text-slate-300 text-sm font-medium"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl transition-all shadow-xl shadow-green-200 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 mt-4 h-14"
+            >
+              {isLoading ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <>
+                  <span className="uppercase text-xs font-black tracking-[0.2em]">Sincronizar Panel</span>
+                  <LogIn size={18} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-10 flex items-center justify-center gap-2">
+             <div className="h-px w-8 bg-slate-100" />
+             <span className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">Global Logistics Infrastructure</span>
+             <div className="h-px w-8 bg-slate-100" />
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };

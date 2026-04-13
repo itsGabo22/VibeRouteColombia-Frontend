@@ -1,35 +1,63 @@
-
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ProtectedRoute } from '../shared/components/ProtectedRoute';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from '../ui/pages/LoginPage';
 import { DashboardPage } from '../ui/pages/DashboardPage';
-import { AdminLoginPage } from '../ui/pages/auth/AdminLoginPage';
-import { LogisticsLoginPage } from '../ui/pages/auth/LogisticsLoginPage';
-import { DriverLoginPage } from '../ui/pages/auth/DriverLoginPage';
+import { LogisticDashboardPage } from '../ui/pages/LogisticDashboardPage';
 import { useAuthStore } from './store/authStore';
 
-function App() {
-  const token = useAuthStore((state) => state.token);
+// Componente para proteger rutas según el rol
+const ProtectedRoute: React.FC<{ children: React.ReactElement; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
+  const { token, user } = useAuthStore();
+  
+  if (!token) return <Navigate to="/" />;
+  if (allowedRoles && !allowedRoles.includes(user?.role || '')) {
+     // Redirigir al dashboard que le corresponde si intenta entrar a uno prohibido
+     return <Navigate to={user?.role === 'DRIVER' ? '/operational' : '/dashboard'} />;
+  }
+  
+  return children;
+};
+
+const App: React.FC = () => {
+  const { token, user } = useAuthStore();
 
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        <Route path="/login" element={token ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-        <Route path="/login/admin" element={<AdminLoginPage />} />
-        <Route path="/login/logistics" element={<LogisticsLoginPage />} />
-        <Route path="/login/driver" element={<DriverLoginPage />} />
-        
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          {/* Default redirect to dashboard if authenticated */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-        
-        {/* Catch all to login if no route matches */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Login Unificado */}
+        <Route path="/" element={
+          token ? (
+            <Navigate to={user?.role === 'DRIVER' ? '/operational' : '/dashboard'} />
+          ) : (
+            <LoginPage />
+          )
+        } />
+
+        {/* Dashboard Administrativo (Admin & Logística) */}
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'LOGISTICS']}>
+              <DashboardPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Portal Operativo (Logística Operativa) */}
+        <Route 
+          path="/operational" 
+          element={
+            <ProtectedRoute allowedRoles={['DRIVER']}>
+              <LogisticDashboardPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
-}
+};
 
 export default App;
