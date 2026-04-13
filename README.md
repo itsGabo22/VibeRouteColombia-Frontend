@@ -1,68 +1,52 @@
-# 🚀 VibeRoute Colombia — Frontend
+# VibeRoute Colombia - Sistema de Gestión Logística Inteligente 🇨🇴🚚
 
-Sistema Inteligente de Logística y Optimización de Rutas desarrollado para la monitorización de entregas nacionales en Colombia. Esta interfaz consume servicios de una API centralizada (Backend independiente).
+¡Bienvenido al core operativo de **VibeRoute Colombia**! Este repositorio contiene la primera fase del sistema unificado de seguimiento y optimización de rutas, diseñado bajo estándares de **Clean Architecture** y alto rendimiento logístico.
 
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![Zustand](https://img.shields.io/badge/Zustand-444444?style=for-the-badge&logo=react&logoColor=white)
+## 🚀 Módulo 1: Gestión Operativa y Autenticación Unificada
 
----
+En esta primera etapa, hemos consolidado la infraestructura base y los portales críticos para la operación nacional:
 
-## 🏗️ Arquitectura: Feature-Sliced Design (FSD)
+### 🛠️ Características Principales
+- **Dashboard Administrativo (Manager)**: Panel central para la toma de decisiones, visualización de métricas de entrega y analíticas generadas por IA.
+- **Logística Operativa (Driver Portal)**: Una interfaz móvil-first exclusiva para el personal de campo, que consume datos en tiempo real de lotes asignados, estados de entrega y sugerencias de ruta.
+- **Seguridad Robusta**: Sistema de autenticación JWT (JSON Web Tokens) con persistencia de estado mediante **Zustand**.
+- **Diseño Premium**: Interfaz moderna con tema claro (Light Mode), utilizando **Framer Motion** para transiciones fluidas y **Lucide React** para iconografía profesional.
 
-El proyecto utiliza **FSD**, una metodología arquitectónica moderna que separa las responsabilidades por capas funcionales, facilitando la escalabilidad y el mantenimiento:
+### ⚙️ Ajustes Críticos del Backend
+Para esta fase, se realizaron optimizaciones de infraestructura y seguridad:
+- **CORS Management**: Configuración de `SecurityConfig.java` para permitir el tráfico desde el puerto `3000` del frontend.
+- **Jerarquía de Permisos**: Actualización de políticas de acceso para permitir que el rol `DRIVER` consulte sus propios lotes y analíticas operativas.
+- **Virtualización de DB**: Mapeo de puertos reconfigurado a `5433:5432` en Docker para evitar colisiones con instancias locales de PostgreSQL.
 
-- `app/`: Configuración global, estado de la aplicación (`Zustand`) y ruteo central.
-- `pages/`: Vistas de alto nivel compuestas por características y componentes.
-- `features/`: Lógica de negocio interactiva (Auth, Gestión de Pedidos).
-- `shared/`: Recursos reutilizables desacoplados (`UI components`, `api axios config`, `utils`).
+### 🏗️ Arquitectura del Sistema
+- **Backend**: Spring Boot 3 + PostgreSQL/PostGIS (Georeferenciación avanzada).
+- **Frontend**: React (Vite) + TypeScript + Tailwind CSS.
+- **Contenerización**: Despliegue listo para producción mediante **Docker Compose**.
 
----
+## 📦 Instalación y Ejecución
 
-## 🔗 Conexión con el Backend
-
-Este frontend está diseñado para conectarse a un **Backend externo**. Asegúrate de configurar la URL correcta en las variables de entorno.
-
-### Configuración de Variables de Entorno
-
-Crea un archivo `.env` en la raíz del proyecto y define la variable según tu entorno:
-
-```bash
-# Para trabajo LOCAL (Si tienes el backend corriendo en tu PC):
-VITE_API_URL=http://localhost:5000/api/v1
-
-# Para trabajo con el BACKEND EN LA NUBE (Recomendado para el equipo):
-VITE_API_URL=https://tu-api-en-render.onrender.com/api/v1
-```
-
-> [!IMPORTANT]
-> Nunca compartas el archivo `.env` real en GitHub. El archivo `.env.example` sirve como guía para que cada integrante configure su propia conexión.
-
-> [!IMPORTANT]
-> Todas las peticiones están pre-configuradas con interceptores de Axios para incluir el Bearer Token automáticamente desde el `useAuthStore`.
-
----
-
-## 🛠️ Comandos de Desarrollo
-
-1. **Instalación de dependencias:**
+1. **Clonar el repositorio:**
    ```bash
-   npm install
-   ```
-2. **Levantar el servidor local (Vite):**
-   ```bash
-   npm run dev
-   ```
-3. **Construir para producción (Build):**
-   ```bash
-   npm run build
+   git clone [URL_DEL_REPOSITORIO]
    ```
 
----
+2. **Levantar infraestructura (Docker):**
+   ```bash
+   docker-compose up --build
+   ```
 
-## 📄 Notas adicionales
-- **Estilo**: Tailwind CSS + Lucide React para iconografía.
-- **Estado**: Zustand con persistencia en localStorage para el rol y token del usuario.
-- **Despliegue**: Optimizado para Vercel o Docker.
+3. **Poblar datos de prueba (Opcional):**
+   ```bash
+   python ./backend/test_flujo.py
+   ```
+
+4. **Acceso:**
+   - Frontend: `http://localhost:3000`
+   - Backend API: `http://localhost:8080/api/v1`
+
+## 👨‍💻 Integrantes de Logística
+- **Operación de Campo**: Gestionada a través del nuevo `LogisticDashboardPage`.
+- **Control Central**: Gestionado a través del `DashboardPage`.
+
+---
+*VibeRoute Colombia - Transformando la red de suministros nacional con tecnología de punta.*
