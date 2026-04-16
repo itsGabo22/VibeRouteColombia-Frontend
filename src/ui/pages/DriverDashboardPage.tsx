@@ -17,12 +17,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../app/store/authStore';
 import api from '../../shared/lib/api';
 import { OrdersManagementModule } from '../../features/orders/OrdersManagementModule';
+import { MapsNavigationModule } from '../../features/rutas/MapsNavigationModule';
+import { Map as MapIcon } from 'lucide-react';
 
 export const DriverDashboardPage: React.FC = () => {
   const { user, logout, token } = useAuthStore();
   const navigate = useNavigate();
-  const [view, setView] = useState<'summary' | 'list'>('summary');
+  const [view, setView] = useState<'summary' | 'list' | 'map'>('summary');
   
+  const [driverId, setDriverId] = useState<number>(0);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ delivered: 0, pending: 0 });
@@ -35,14 +38,21 @@ export const DriverDashboardPage: React.FC = () => {
         b.driver && b.driver.email === user?.email && b.status !== 'COMPLETED'
       );
 
-      if (myBatch && myBatch.orders) {
-        const allOrders = myBatch.orders;
-        setOrders(allOrders);
-        const delivered = allOrders.filter((o: any) => o.status === 'DELIVERED').length;
-        const pending = allOrders.filter((o: any) => o.status === 'PENDING' || o.status === 'ON_ROUTE').length;
-        setStats({ delivered, pending });
-        const next = allOrders.find((o: any) => o.status === 'PENDING' || o.status === 'ON_ROUTE');
-        setNextOrder(next);
+      if (myBatch) {
+        if (myBatch.driver?.id) setDriverId(myBatch.driver.id);
+        
+        if (myBatch.orders) {
+          const allOrders = myBatch.orders;
+          setOrders(allOrders);
+          const delivered = allOrders.filter((o: any) => o.status === 'DELIVERED').length;
+          const pending = allOrders.filter((o: any) => o.status === 'PENDING' || o.status === 'ON_ROUTE').length;
+          setStats({ delivered, pending });
+          const next = allOrders.find((o: any) => o.status === 'PENDING' || o.status === 'ON_ROUTE');
+          setNextOrder(next);
+        }
+      } else {
+        // MODO TEST: Si no hay lote, forzamos ID 1 para activar el sensor GPS en pruebas
+        setDriverId(1);
       }
     } catch (err) {
       console.error("Error cargando datos del driver:", err);
@@ -146,7 +156,7 @@ export const DriverDashboardPage: React.FC = () => {
                       <p className="text-slate-400 text-sm font-medium">{nextOrder.city}, CO • REF: {nextOrder.clientReference}</p>
                       
                       <button 
-                         onClick={() => setView('list')}
+                         onClick={() => setView('map')}
                          className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 mt-4 active:scale-95 transition-all shadow-xl shadow-white/10"
                       >
                          Iniciar Navegación <Navigation size={16} className="text-green-500" />
@@ -199,7 +209,7 @@ export const DriverDashboardPage: React.FC = () => {
                  </div>
               </div>
             </motion.div>
-          ) : (
+          ) : view === 'list' ? (
             <motion.div 
                key="list"
                initial={{ opacity: 0, x: 20 }}
@@ -214,13 +224,29 @@ export const DriverDashboardPage: React.FC = () => {
                </div>
                <OrdersManagementModule driverName={user?.name || ''} onUpdate={fetchData} />
             </motion.div>
+          ) : (
+            <motion.div 
+               key="map"
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: -20 }}
+               className="h-full"
+            >
+               <div className="flex items-center justify-between mb-6">
+                  <button onClick={() => setView('summary')} className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all">
+                     ← Resumen
+                  </button>
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Navegación Asistida</h3>
+               </div>
+               <MapsNavigationModule driverId={driverId} />
+            </motion.div>
           )}
         </AnimatePresence>
 
       </main>
 
       <footer className="bg-white border-t border-slate-100 p-4 fixed bottom-0 left-0 right-0 z-40">
-        <div className="max-w-md mx-auto grid grid-cols-2 gap-4">
+        <div className="max-w-md mx-auto grid grid-cols-3 gap-2">
            <button 
              onClick={() => setView('summary')}
              className={`py-4 rounded-2xl flex flex-col items-center gap-1 transition-all ${view === 'summary' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400'}`}
@@ -234,6 +260,13 @@ export const DriverDashboardPage: React.FC = () => {
            >
               <Package size={20} />
               <span className="text-[9px] font-black uppercase tracking-widest">Mis Pedidos</span>
+           </button>
+           <button 
+             onClick={() => setView('map')}
+             className={`py-4 rounded-2xl flex flex-col items-center gap-1 transition-all ${view === 'map' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400'}`}
+           >
+              <MapIcon size={20} />
+              <span className="text-[9px] font-black uppercase tracking-widest">Mapa</span>
            </button>
         </div>
       </footer>

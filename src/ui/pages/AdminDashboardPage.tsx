@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, Package, Truck, BarChart3, Settings, LogOut, 
-  Bell, Map as MapIcon, TrendingUp, Clock, MapPin, Calendar, Navigation, Globe
+  LayoutDashboard, Package, Truck, BarChart3,
+  Bell, Map as MapIcon, TrendingUp, Navigation, Globe, Radio
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../app/store/authStore';
-import api from '../../shared/lib/api';
 import { OrdersManagementModule } from '../../features/orders/OrdersManagementModule';
+import { LiveEventsWall } from '../../features/orders/LiveEventsWall';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'live'>('overview');
 
   return (
     <div className="min-h-screen bg-white flex font-sans">
@@ -34,6 +34,10 @@ export const AdminDashboardPage: React.FC = () => {
           </button>
           <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl transition-all ${activeTab === 'orders' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
             <Package size={18} /> <span className="text-sm font-bold">Gestión de Pedidos</span>
+          </button>
+          <button onClick={() => setActiveTab('live')} className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl transition-all ${activeTab === 'live' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+            <Radio size={18} /> <span className="text-sm font-bold">Eventos en Vivo</span>
+            <span className="ml-auto w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           </button>
         </nav>
 
@@ -128,6 +132,16 @@ export const AdminDashboardPage: React.FC = () => {
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight italic">Control Maestro de Pedidos</h3>
                </div>
                <OrdersManagementModule driverName="" />
+            </motion.div>
+          )}
+
+          {activeTab === 'live' && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-12 min-h-[600px] flex flex-col"
+            >
+              <LiveEventsWall />
             </motion.div>
           )}
         </AnimatePresence>
