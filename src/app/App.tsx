@@ -44,7 +44,7 @@ const App: React.FC = () => {
 
         <Route path="/manager" element={
           <ProtectedRoute allowedRoles={['LOGISTICS']}>
-            <ManagerDashboardPage />
+            <AdminDashboardPage />
           </ProtectedRoute>
         } />
 

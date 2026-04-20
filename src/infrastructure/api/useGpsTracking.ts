@@ -116,7 +116,7 @@ export function useGpsTracking({
       }
     );
   }, [driverId]);
-
+  
   // Start / stop the interval
   useEffect(() => {
     if (!enabled || !driverId) return;

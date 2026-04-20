@@ -13,22 +13,34 @@ interface Order {
   clientName: string;
   address: string;
   city: string;
-  status: 'PENDING' | 'ON_ROUTE' | 'DELIVERED' | 'NOVEDAD' | 'CANCELED';
+  status: 'PENDING' | 'ON_ROUTE' | 'DELIVERED' | 'CANCELLED' | 'RETURNED';
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   createdAt?: string;
+  nonDeliveryReason?: string;
 }
 
-export const OrdersManagementModule: React.FC<{ driverName: string, forceCity?: string, onUpdate?: () => void }> = ({ driverName, forceCity, onUpdate }) => {
+export const OrdersManagementModule: React.FC<{ 
+  driverName: string;
+  forceCity?: string;
+  searchQuery?: string;
+  onUpdate?: () => void;
+}> = ({ driverName, forceCity, searchQuery = '', onUpdate }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Novedad states
+  const [isNovedadOpen, setIsNovedadOpen] = useState(false);
+  const [novedadReason, setNovedadReason] = useState('');
+  const [novedadStatus, setNovedadStatus] = useState<'CANCELLED' | 'RETURNED'>('CANCELLED');
 
   useEffect(() => {
     fetchOrders();
-  }, [driverName, forceCity]);
+    if (searchQuery) setSearchTerm(searchQuery);
+  }, [driverName, forceCity, searchQuery]);
 
   const fetchOrders = async () => {
     try {
@@ -39,7 +51,7 @@ export const OrdersManagementModule: React.FC<{ driverName: string, forceCity?: 
 
       if (driverName) {
         const myBatch = batches.find((b: any) => 
-          b.driver && b.driver.name.toLowerCase() === driverName.toLowerCase() && b.status !== 'COMPLETED'
+          b.driver && b.driver.name?.toLowerCase() === driverName?.toLowerCase() && b.status !== 'COMPLETED'
         );
         allOrders = myBatch?.orders || [];
       } else {
@@ -49,7 +61,7 @@ export const OrdersManagementModule: React.FC<{ driverName: string, forceCity?: 
       }
       
       if (forceCity) {
-        allOrders = allOrders.filter(o => o.city.toLowerCase() === forceCity.toLowerCase());
+        allOrders = allOrders.filter(o => o.city?.toLowerCase() === forceCity.toLowerCase());
       }
 
       setOrders(allOrders);
@@ -60,15 +72,21 @@ export const OrdersManagementModule: React.FC<{ driverName: string, forceCity?: 
     }
   };
 
-  const handleUpdateStatus = async (orderId: number, nextStatus: string) => {
+  const handleUpdateStatus = async (orderId: number, nextStatus: string, reason?: string) => {
     try {
       setIsUpdating(true);
-      await api.patch(`/orders/${orderId}/status?status=${nextStatus}`);
+      const url = reason 
+        ? `/orders/${orderId}/status?status=${nextStatus}&reason=${encodeURIComponent(reason)}`
+        : `/orders/${orderId}/status?status=${nextStatus}`;
+        
+      await api.patch(url);
       
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: nextStatus as any } : o));
+      setOrders((prev: Order[]) => prev.map(o => o.id === orderId ? { ...o, status: nextStatus as any, nonDeliveryReason: reason } : o));
       if (selectedOrder?.id === orderId) {
-        setSelectedOrder(prev => prev ? { ...prev, status: nextStatus as any } : null);
+        setSelectedOrder((prev: Order | null) => prev ? { ...prev, status: nextStatus as any, nonDeliveryReason: reason } : null);
       }
+      setIsNovedadOpen(false);
+      setNovedadReason('');
       if (onUpdate) onUpdate();
     } catch (err: any) {
       console.error("Error updating order:", err);
@@ -82,8 +100,8 @@ export const OrdersManagementModule: React.FC<{ driverName: string, forceCity?: 
     'PENDING': { label: 'PENDIENTE', color: 'bg-slate-100 text-slate-600', icon: Clock },
     'ON_ROUTE': { label: 'EN RUTA', color: 'bg-blue-50 text-blue-600', icon: Navigation },
     'DELIVERED': { label: 'ENTREGADO', color: 'bg-green-50 text-green-600', icon: CheckCircle2 },
-    'NOVEDAD': { label: 'NOVEDAD', color: 'bg-amber-50 text-amber-600', icon: AlertTriangle },
-    'CANCELED': { label: 'CANCELADO', color: 'bg-red-50 text-red-600', icon: XCircle },
+    'CANCELLED': { label: 'CANCELADO', color: 'bg-red-50 text-red-600', icon: XCircle },
+    'RETURNED': { label: 'DEVUELTO', color: 'bg-amber-50 text-amber-600', icon: AlertTriangle },
   };
 
   const priorityMap: any = {
@@ -94,9 +112,9 @@ export const OrdersManagementModule: React.FC<{ driverName: string, forceCity?: 
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
-      order.clientReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+      (order.clientReference || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.address || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesFilter = filterStatus === 'ALL' || order.status === filterStatus;
     return matchesSearch && matchesFilter;
@@ -287,15 +305,84 @@ export const OrdersManagementModule: React.FC<{ driverName: string, forceCity?: 
                      </button>
                      <button 
                         disabled={isUpdating || selectedOrder.status === 'DELIVERED'}
-                        onClick={() => handleUpdateStatus(selectedOrder.id, 'NOVEDAD')}
+                        onClick={() => setIsNovedadOpen(true)}
                         className="py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-slate-200 transition-all hover:bg-slate-800 active:scale-95"
                      >
                         <AlertTriangle size={20} className="text-amber-500" /> Reportar Novedad
                      </button>
                   </div>
                 )}
+
+                {selectedOrder.nonDeliveryReason && (
+                   <div className="p-6 bg-red-50 rounded-3xl border border-red-100 animate-pulse">
+                      <p className="text-[10px] text-red-400 font-black uppercase tracking-widest mb-1">Motivo de Novedad</p>
+                      <p className="text-xs font-bold text-red-900 italic">" {selectedOrder.nonDeliveryReason} "</p>
+                   </div>
+                )}
               </div>
             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Novedad Logic Modal */}
+      <AnimatePresence>
+        {isNovedadOpen && selectedOrder && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setIsNovedadOpen(false)}
+               className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+             />
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.9, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.9, y: 20 }}
+               className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl relative z-10 overflow-hidden"
+             >
+                <div className="p-10 space-y-8">
+                   <div className="space-y-2">
+                      <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em]">Gestión de Incidencias</p>
+                      <h3 className="text-3xl font-black text-slate-900 tracking-tighter">¿Qué sucedió con el pedido?</h3>
+                   </div>
+
+                   <div className="flex gap-4">
+                      {(['CANCELLED', 'RETURNED'] as const).map(status => (
+                         <button
+                           key={status}
+                           onClick={() => setNovedadStatus(status)}
+                           className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                             novedadStatus === status 
+                               ? 'bg-slate-900 text-white shadow-xl' 
+                               : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                           }`}
+                         >
+                            {status === 'CANCELLED' ? <div className="flex items-center justify-center gap-2"><XCircle size={14}/> CANCELADO</div> : <div className="flex items-center justify-center gap-2"><AlertTriangle size={14}/> DEVUELTO</div>}
+                         </button>
+                      ))}
+                   </div>
+
+                   <div className="space-y-4">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motivo detallado (Obligatorio)</label>
+                      <textarea 
+                        className="w-full bg-slate-50 border-none rounded-3xl p-6 text-sm font-medium focus:ring-4 focus:ring-amber-500/10 min-h-[120px] resize-none"
+                        placeholder="Ej: Cliente no se encontraba en casa, dirección incorrecta..."
+                        value={novedadReason}
+                        onChange={(e) => setNovedadReason(e.target.value)}
+                      />
+                   </div>
+
+                   <button
+                     disabled={!novedadReason.trim() || isUpdating}
+                     onClick={() => handleUpdateStatus(selectedOrder.id, novedadStatus, novedadReason)}
+                     className="w-full py-6 bg-amber-500 text-white rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-amber-100 hover:bg-amber-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                      {isUpdating ? <Loader2 size={20} className="animate-spin" /> : 'Confirmar Reporte'}
+                   </button>
+                </div>
+             </motion.div>
           </div>
         )}
       </AnimatePresence>

@@ -22,8 +22,9 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // SOLO enviamos email y password para evitar ruido en el Network Tab
-      const { data } = await api.post('/auth/login', { email, password });
+      // Codificamos la contraseña en Base64 para que no sea visible en texto plano en el Network Tab
+      const encodedPassword = btoa(password);
+      const { data } = await api.post('/auth/login', { email, password: encodedPassword });
       
       // Obtenemos el token y los datos del usuario de la respuesta
       const { token, user } = data;
@@ -36,10 +37,14 @@ export const LoginPage: React.FC = () => {
         return;
       }
 
-      setAuth(token, tokenRole, email, user.name);
+      setAuth(token, tokenRole, email, user.name, user.assignedCity);
       navigate('/');
     } catch (err: any) {
-      setError('Error de autenticación. Verifica tus credenciales.');
+      if (err.response?.status === 401) {
+        setError('Acceso denegado: Credenciales incorrectas o no autorizadas (401).');
+      } else {
+        setError('Error de autenticación. Verifica tus credenciales o conexión.');
+      }
     } finally {
       setIsLoading(false);
     }

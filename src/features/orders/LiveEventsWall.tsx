@@ -8,7 +8,7 @@ import { useWebSocket } from '../../infrastructure/websocket/useWebSocket';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type EventType = 'DELIVERED' | 'NOVEDAD' | 'ON_ROUTE' | 'CANCELED' | 'GENERIC';
+type EventType = 'DELIVERED' | 'NOVEDAD' | 'ON_ROUTE' | 'CANCELLED' | 'GENERIC';
 
 interface LiveEvent {
   id: string;
@@ -24,7 +24,7 @@ const EVENT_META: Record<EventType, { icon: React.ElementType; color: string; do
   DELIVERED: { icon: CheckCircle2, color: 'bg-green-50  text-green-600  border-green-100', dot: 'bg-green-500' },
   NOVEDAD:   { icon: AlertTriangle, color: 'bg-amber-50  text-amber-600  border-amber-100', dot: 'bg-amber-500' },
   ON_ROUTE:  { icon: Navigation,   color: 'bg-blue-50   text-blue-600   border-blue-100',  dot: 'bg-blue-500'  },
-  CANCELED:  { icon: XCircle,      color: 'bg-red-50    text-red-600    border-red-100',    dot: 'bg-red-500'   },
+  CANCELLED: { icon: XCircle,      color: 'bg-red-50    text-red-600    border-red-100',    dot: 'bg-red-500'   },
   GENERIC:   { icon: Package,      color: 'bg-slate-50  text-slate-600  border-slate-100',  dot: 'bg-slate-400' },
 };
 
@@ -37,7 +37,7 @@ function toEventType(raw: string): EventType {
     DELIVERED: 'DELIVERED',
     NOVEDAD:   'NOVEDAD',
     ON_ROUTE:  'ON_ROUTE',
-    CANCELED:  'CANCELED',
+    CANCELLED: 'CANCELLED',
   };
   return map[raw] ?? 'GENERIC';
 }

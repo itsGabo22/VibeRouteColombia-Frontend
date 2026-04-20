@@ -8,13 +8,15 @@ import {
   MapPin, 
   LogOut, 
   Navigation,
-  CheckCircle2,
-  ChevronRight,
   LayoutDashboard,
-  Loader2
+  Loader2,
+  DollarSign,
+  CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../app/store/authStore';
+import { useMissionStore } from '../../app/store/missionStore';
+import { GeminiInsightModule } from '../../features/ai/GeminiInsightModule';
 import api from '../../shared/lib/api';
 import { OrdersManagementModule } from '../../features/orders/OrdersManagementModule';
 import { MapsNavigationModule } from '../../features/rutas/MapsNavigationModule';
@@ -22,13 +24,14 @@ import { Map as MapIcon } from 'lucide-react';
 
 export const DriverDashboardPage: React.FC = () => {
   const { user, logout, token } = useAuthStore();
+  const { currentBatchId, startMission } = useMissionStore();
   const navigate = useNavigate();
   const [view, setView] = useState<'summary' | 'list' | 'map'>('summary');
   
   const [driverId, setDriverId] = useState<number>(0);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ delivered: 0, pending: 0 });
+  const [stats, setStats] = useState({ delivered: 0, pending: 0, totalValue: 0 });
   const [nextOrder, setNextOrder] = useState<any>(null);
 
   const fetchData = async () => {
@@ -40,13 +43,15 @@ export const DriverDashboardPage: React.FC = () => {
 
       if (myBatch) {
         if (myBatch.driver?.id) setDriverId(myBatch.driver.id);
+        startMission(myBatch.id);
         
         if (myBatch.orders) {
           const allOrders = myBatch.orders;
           setOrders(allOrders);
           const delivered = allOrders.filter((o: any) => o.status === 'DELIVERED').length;
           const pending = allOrders.filter((o: any) => o.status === 'PENDING' || o.status === 'ON_ROUTE').length;
-          setStats({ delivered, pending });
+          const totalValue = allOrders.reduce((sum: number, o: any) => sum + (o.price || 0), 0);
+          setStats({ delivered, pending, totalValue });
           const next = allOrders.find((o: any) => o.status === 'PENDING' || o.status === 'ON_ROUTE');
           setNextOrder(next);
         }
@@ -126,7 +131,14 @@ export const DriverDashboardPage: React.FC = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="space-y-6"
             >
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm col-span-2 md:col-span-1">
+                    <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center mb-4">
+                       <DollarSign size={20} />
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-900">${stats.totalValue.toLocaleString()}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Valor de Ruta</p>
+                 </div>
                  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                     <div className="w-10 h-10 bg-green-50 text-green-500 rounded-xl flex items-center justify-center mb-4">
                        <CheckCircle2 size={20} />
@@ -154,6 +166,9 @@ export const DriverDashboardPage: React.FC = () => {
                       </div>
                       <h4 className="text-2xl font-black tracking-tighter leading-tight">{nextOrder.address}</h4>
                       <p className="text-slate-400 text-sm font-medium">{nextOrder.city}, CO • REF: {nextOrder.clientReference}</p>
+                      {nextOrder.price && (
+                        <p className="text-emerald-400 text-xs font-black uppercase tracking-widest mt-1">Valor: ${nextOrder.price.toLocaleString()}</p>
+                      )}
                       
                       <button 
                          onClick={() => setView('map')}
@@ -175,6 +190,17 @@ export const DriverDashboardPage: React.FC = () => {
                    </div>
                    <h3 className="text-4xl font-black text-slate-900 tracking-tighter mb-2 italic">¡Misión Cumplida!</h3>
                    <p className="text-slate-400 font-bold text-sm mb-10 max-w-[200px] mx-auto">Has completado todas las entregas de tu lote asignado.</p>
+                   
+                   {/* Módulo 4: Gemini AI Insight (REAL DATA) */}
+                   <div className="mb-10 text-left">
+                      <GeminiInsightModule stats={{
+                        delivered: stats.delivered,
+                        pending: 0,
+                        hours: orders.length > 5 ? 6 : 3, // Estimación basada en volumen real
+                        city: orders[0]?.city || 'Bogotá' // Ciudad real del primer pedido
+                      }} />
+                   </div>
+
                    <div className="grid grid-cols-2 gap-4 mb-10">
                       <div className="p-6 bg-slate-50 rounded-3xl">
                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Entregas</p>

@@ -1,150 +1,193 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, Package, Truck, BarChart3,
-  Bell, Map as MapIcon, TrendingUp, Navigation, Globe, Radio
+  LayoutDashboard, 
+  Map, 
+  Settings, 
+  LogOut,
+  Bell,
+  Search,
+  Plus,
+  ArrowRight,
+  Database,
+  LineChart,
+  Truck,
+  FileText,
+  ShieldCheck,
+  Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../app/store/authStore';
 import { OrdersManagementModule } from '../../features/orders/OrdersManagementModule';
 import { LiveEventsWall } from '../../features/orders/LiveEventsWall';
+import { FleetManagementHome } from '../../features/analytics/FleetManagementHome';
+import { BulkImportModule } from '../../features/bulk/BulkImportModule';
+import { DocumentHubModule } from '../../features/reports/DocumentHubModule';
+import { LogisticsDispatchCenter } from '../../features/dispatch/LogisticsDispatchCenter';
+import { BatchConsolidationModule } from '../../features/dispatch/BatchConsolidationModule';
+
+type AdminTab = 'dashboard' | 'orders' | 'live' | 'analytics' | 'import' | 'reports' | 'dispatch' | 'batchConsolidation';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'live'>('overview');
+  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCity, setSelectedCity] = useState<string>(user?.assignedCity || '');
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const isLogistica = user?.role === 'LOGISTICS';
+  const isAdmin = user?.role === 'ADMIN';
+
+  const navItems = [
+    { id: 'dashboard', label: isAdmin ? 'Monitor Global' : 'Monitor de Ciudad', icon: LayoutDashboard },
+    ...(isAdmin ? [
+      { id: 'import', label: 'Carga Masiva (JSON)', icon: Database },
+      { id: 'reports', label: 'Cierres de Caja', icon: FileText },
+    ] : []),
+    ...(isLogistica ? [
+      { id: 'batchConsolidation', label: 'Consolidar Lotes', icon: Plus },
+      { id: 'dispatch', label: 'Monitor de Despacho', icon: Package },
+      { id: 'orders', label: 'Ver Pedidos', icon: Database },
+      { id: 'reports', label: 'Subir Reporte', icon: FileText },
+    ] : []),
+    { id: 'live', label: 'Eventos en Vivo', icon: Bell },
+  ];
+
+  // Set default tab based on role if current is not available
+  React.useEffect(() => {
+    if (isAdmin && activeTab === 'dispatch') setActiveTab('dashboard');
+    if (isLogistica && activeTab === 'import') setActiveTab('dispatch');
+  }, [isAdmin, isLogistica]);
 
   return (
-    <div className="min-h-screen bg-white flex font-sans">
-      <aside className="w-80 bg-slate-900 flex flex-col fixed h-full z-20 overflow-hidden">
-        <div className="p-10 flex items-center gap-3 relative">
-          <div className="absolute -top-10 -left-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl opacity-50" />
-          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 text-white relative">
-            <Globe size={20} className="text-green-400" />
-          </div>
-          <div className="relative">
-             <h1 className="font-black text-white tracking-tighter text-xl italic leading-none">Vibe<span className="text-green-500">Route</span></h1>
-             <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Control Central</p>
-          </div>
-        </div>
-        
-        <nav className="flex-1 px-6 space-y-2 mt-4">
-          <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-            <LayoutDashboard size={18} /> <span className="text-sm font-bold">Mando Nacional</span>
-          </button>
-          <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl transition-all ${activeTab === 'orders' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-            <Package size={18} /> <span className="text-sm font-bold">Gestión de Pedidos</span>
-          </button>
-          <button onClick={() => setActiveTab('live')} className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl transition-all ${activeTab === 'live' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-            <Radio size={18} /> <span className="text-sm font-bold">Eventos en Vivo</span>
-            <span className="ml-auto w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          </button>
-        </nav>
+    <div className="min-h-screen bg-[#F0FDFA] flex font-sans">
+      
+      {/* Sidebar Style Fleet Management */}
+      <aside className="w-72 bg-teal-900 text-white flex flex-col fixed h-full z-40">
+        <div className="p-8">
+           <div className="flex items-center gap-3 mb-10">
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                 <Truck size={22} className="text-white" />
+              </div>
+              <h1 className="text-xl font-black tracking-tighter uppercase italic leading-none">
+                Fleet<span className="text-emerald-400">Manage</span> <br/>
+                <span className="text-[10px] text-teal-400 tracking-[0.3em] font-bold">VibeRoute Colombia</span>
+              </h1>
+           </div>
 
-        <div className="p-8 mt-auto border-t border-white/5 bg-black/20">
-           <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-slate-800 rounded-full border border-white/10 overflow-hidden">
-                 <img src={`https://ui-avatars.com/api/?name=${user?.name}&background=1e293b&color=fff`} alt="Admin" />
+           <nav className="space-y-1">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id as AdminTab)}
+                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    activeTab === item.id 
+                    ? 'bg-white/10 text-emerald-400 border-l-4 border-emerald-400' 
+                    : 'text-teal-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </button>
+              ))}
+           </nav>
+        </div>
+
+        <div className="mt-auto p-8 border-t border-white/5">
+           <div className="flex items-center gap-4 mb-6">
+              <div className="w-10 h-10 rounded-full border-2 border-emerald-400 p-0.5">
+                 <img src={`https://ui-avatars.com/api/?name=${user?.name}&background=10b981&color=fff`} className="rounded-full" alt="User" />
               </div>
               <div>
-                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none mb-1">Administrador</p>
-                 <p className="text-sm font-bold text-white tracking-tight leading-none">{user?.name}</p>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                    {user?.role === 'ADMIN' ? 'Control Central' : `Operador ${user?.assignedCity || 'Logística'}`}
+                 </p>
+                 <p className="text-xs font-bold text-white truncate max-w-[120px]">{user?.name}</p>
               </div>
            </div>
-           <button onClick={() => { logout(); navigate('/'); }} className="w-full py-4 bg-red-500/10 text-red-400 text-xs font-black uppercase rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20">Cerrar Sesión</button>
+           <button onClick={handleLogout} className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/5 hover:bg-rose-500/10 hover:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+             <LogOut size={16} /> Cerrar Sesión
+           </button>
         </div>
       </aside>
 
-      <main className="flex-1 ml-80 p-12 bg-slate-50/50 min-h-screen">
-        <header className="flex justify-between items-center mb-12">
-           <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-100 mb-2">
-                 <Navigation size={12} /> Operación Nacional
+      {/* Main Content Area */}
+      <main className="flex-1 ml-72 p-10 min-h-screen">
+        
+        {/* Fleet Header */}
+        <header className="flex justify-between items-center mb-10">
+           <div className="relative">
+              <div className="flex items-center gap-3 text-teal-600 mb-2">
+                 <ShieldCheck size={14} />
+                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">SISTEMA DE GESTIÓN VIGENTE</span>
               </div>
-              <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Dashboard <span className="text-green-500 italic">Central</span></h2>
+              <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic">
+                {navItems.find(t => t.id === activeTab)?.label}
+              </h2>
            </div>
-           <div className="flex gap-4">
-              <button className="p-4 bg-white border border-slate-100 rounded-[1.5rem] text-slate-400 hover:text-slate-900 transition-all shadow-sm">
-                 <Bell size={20} />
-              </button>
-              <button className="p-4 bg-slate-900 text-white rounded-[1.5rem] shadow-xl hover:scale-105 transition-all flex items-center gap-3">
-                 <BarChart3 size={20} className="text-green-400" />
-                 <span className="text-xs font-black uppercase tracking-widest">Descargar Reporte</span>
+
+           <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm">
+                 <Search size={16} className="text-slate-400" />
+                 <input 
+                  type="text" 
+                  placeholder="Buscar en flota..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-transparent border-none outline-none text-xs font-bold w-48" 
+                 />
+              </div>
+              <button className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-teal-600 transition-all shadow-sm">
+                 <Settings size={20} />
               </button>
            </div>
         </header>
 
+        {/* Dynamic Navigation View */}
         <AnimatePresence mode="wait">
-          {activeTab === 'overview' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="p-10 bg-white rounded-[3rem] border border-slate-100 shadow-sm flex flex-col justify-between">
-                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-10">Pedidos del Mes</p>
-                     <div className="flex items-end justify-between">
-                        <h3 className="text-5xl font-black text-slate-900 tracking-tighter italic">1,280</h3>
-                        <div className="w-12 h-12 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center">
-                           <TrendingUp size={24} />
-                        </div>
-                     </div>
-                  </div>
-                  <div className="p-10 bg-white rounded-[3rem] border border-slate-100 shadow-sm flex flex-col justify-between">
-                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-10">Conductores Activos</p>
-                     <div className="flex items-end justify-between">
-                        <h3 className="text-5xl font-black text-slate-900 tracking-tighter italic">42</h3>
-                        <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
-                           <Truck size={24} />
-                        </div>
-                     </div>
-                  </div>
-                  <div className="p-10 bg-slate-900 rounded-[3rem] text-white shadow-2xl shadow-slate-200 flex flex-col justify-between relative overflow-hidden">
-                     <div className="absolute top-0 right-0 p-8 opacity-10">
-                        <MapIcon size={120} />
-                     </div>
-                     <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-10">Efectividad Global</p>
-                     <div className="flex items-end justify-between relative z-10">
-                        <h3 className="text-5xl font-black tracking-tighter italic">98.2%</h3>
-                        <div className="w-12 h-12 bg-white/10 text-white rounded-2xl flex items-center justify-center border border-white/10">
-                           <BarChart3 size={24} />
-                        </div>
-                     </div>
-                  </div>
-               </div>
-               
-               <div className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-sm overflow-hidden relative">
-                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-300 via-green-500 to-green-300"></div>
-                  <div className="flex justify-between items-center mb-10">
-                     <h4 className="text-xl font-black text-slate-900 tracking-tight italic">Últimos Movimientos en el Mapa</h4>
-                     <button className="text-[10px] font-black uppercase tracking-widest text-green-600 border-b-2 border-green-500 pb-1">Ver Mapa Completo</button>
-                  </div>
-                  <div className="h-64 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex items-center justify-center flex-col gap-4">
-                     <div className="p-4 bg-white rounded-2xl shadow-sm text-green-500 animate-pulse">
-                        <MapIcon size={32} />
-                     </div>
-                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Cargando red logística en tiempo real...</p>
-                  </div>
-               </div>
-            </motion.div>
-          )}
+           <motion.div
+             key={activeTab}
+             initial={{ opacity: 0, y: 15 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: -15 }}
+             transition={{ duration: 0.3 }}
+           >
+              {activeTab === 'dashboard' && <FleetManagementHome city={selectedCity} onCityChange={setSelectedCity} searchQuery={searchQuery} />}
 
-          {activeTab === 'orders' && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-               <div className="mb-10 flex items-center justify-between">
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight italic">Control Maestro de Pedidos</h3>
-               </div>
-               <OrdersManagementModule driverName="" />
-            </motion.div>
-          )}
+              {activeTab === 'orders' && (
+                <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                   <OrdersManagementModule driverName="" forceCity={selectedCity} searchQuery={searchQuery} />
+                </div>
+              )}
 
-          {activeTab === 'live' && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-12 min-h-[600px] flex flex-col"
-            >
-              <LiveEventsWall />
-            </motion.div>
-          )}
+              {activeTab === 'dispatch' && <LogisticsDispatchCenter city={selectedCity} searchQuery={searchQuery} />}
+
+              {activeTab === 'reports' && (
+                <DocumentHubModule mode={user?.role === 'ADMIN' ? 'admin' : 'logistica'} />
+              )}
+
+              {activeTab === 'import' && (
+                 <BulkImportModule onComplete={() => setActiveTab('dashboard')} />
+              )}
+
+              {activeTab === 'batchConsolidation' && (
+                 <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                    <h2 className="text-2xl font-black text-slate-800 tracking-tighter uppercase italic mb-6">Consolidación de <span className="text-teal-600">Lotes</span></h2>
+                    <BatchConsolidationModule city={selectedCity} searchQuery={searchQuery} onComplete={() => setActiveTab('dispatch')} />
+                 </div>
+              )}
+
+              {activeTab === 'live' && (
+                 <LiveEventsWall />
+              )}
+           </motion.div>
         </AnimatePresence>
+
       </main>
     </div>
   );
