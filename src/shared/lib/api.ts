@@ -13,5 +13,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// For simplicity, skip intercepting 401s to auto-logout in this adelanto
+// Manejo de errores 401 para auto-logout si el token expira o es inválido
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.warn("Token inválido o expirado. Cerrando sesión...");
+      useAuthStore.getState().logout();
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

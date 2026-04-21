@@ -14,7 +14,8 @@ import {
   Truck,
   FileText,
   ShieldCheck,
-  Package
+  Package,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../app/store/authStore';
@@ -25,8 +26,9 @@ import { BulkImportModule } from '../../features/bulk/BulkImportModule';
 import { DocumentHubModule } from '../../features/reports/DocumentHubModule';
 import { LogisticsDispatchCenter } from '../../features/dispatch/LogisticsDispatchCenter';
 import { BatchConsolidationModule } from '../../features/dispatch/BatchConsolidationModule';
+import { UserManagementModule } from '../../features/users/UserManagementModule';
 
-type AdminTab = 'dashboard' | 'orders' | 'live' | 'analytics' | 'import' | 'reports' | 'dispatch' | 'batchConsolidation';
+type AdminTab = 'dashboard' | 'orders' | 'live' | 'analytics' | 'import' | 'reports' | 'dispatch' | 'batchConsolidation' | 'users';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -56,6 +58,7 @@ export const AdminDashboardPage: React.FC = () => {
       { id: 'reports', label: 'Subir Reporte', icon: FileText },
     ] : []),
     { id: 'live', label: 'Eventos en Vivo', icon: Bell },
+    { id: 'users', label: 'Gestión de Personal', icon: Users },
   ];
 
   // Set default tab based on role if current is not available
@@ -184,6 +187,12 @@ export const AdminDashboardPage: React.FC = () => {
 
               {activeTab === 'live' && (
                  <LiveEventsWall />
+              )}
+
+              {activeTab === 'users' && (
+                 <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                    <UserManagementModule />
+                 </div>
               )}
            </motion.div>
         </AnimatePresence>
