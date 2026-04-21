@@ -10,7 +10,11 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [resetPhone, setResetPhone] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
 
   const setAuth  = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
@@ -38,6 +42,31 @@ export const LoginPage: React.FC = () => {
       } else {
         setError('Error de conexión con el servidor logístico.');
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    setIsLoading(true);
+
+    try {
+      const encodedPassword = btoa(resetPassword);
+      await api.post('/auth/reset-password', { 
+        email, 
+        phone: resetPhone,
+        newPassword: encodedPassword 
+      });
+      setSuccessMsg('¡Contraseña restablecida! Ahora puedes iniciar sesión.');
+      setIsResetMode(false);
+      setResetPhone('');
+      setResetPassword('');
+      setPassword('');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Error al restablecer la contraseña. Verifica los datos.');
     } finally {
       setIsLoading(false);
     }
@@ -94,8 +123,14 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div className="mb-10 text-center lg:text-left">
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tighter mb-2 italic uppercase">Acceso <span className="text-green-500">Operativo</span></h1>
-            <p className="text-slate-400 text-sm font-medium tracking-tight">Ingresa tus credenciales para sincronizar tu panel</p>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tighter mb-2 italic uppercase">
+              {isResetMode ? <span className="text-rose-500">Recuperación</span> : <>Acceso <span className="text-green-500">Operativo</span></>}
+            </h1>
+            <p className="text-slate-400 text-sm font-medium tracking-tight">
+              {isResetMode 
+                ? 'Verifica tu identidad para asignar una nueva clave' 
+                : 'Ingresa tus credenciales para sincronizar tu panel'}
+            </p>
           </div>
 
           <AnimatePresence>
@@ -103,16 +138,95 @@ export const LoginPage: React.FC = () => {
               <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold border border-red-100 text-center"
               >
                 {error}
               </motion.div>
             )}
+            {successMsg && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mb-6 p-4 bg-green-50 text-green-600 rounded-xl text-xs font-bold border border-green-100 text-center"
+              >
+                {successMsg}
+              </motion.div>
+            )}
           </AnimatePresence>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">ID de Usuario</label>
+          {isResetMode ? (
+            <form onSubmit={handleResetPassword} className="space-y-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Correo de la cuenta</label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-rose-500 transition-colors" size={18} />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-100 text-slate-900 pl-12 pr-6 py-4 rounded-xl focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/5 outline-none transition-all placeholder:text-slate-300 text-sm font-medium"
+                    placeholder="usuario@viberoute.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Teléfono de Verificación (2FA)</label>
+                <div className="relative group">
+                  <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-rose-500 transition-colors" size={18} />
+                  <input
+                    type="text"
+                    value={resetPhone}
+                    onChange={(e) => setResetPhone(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-100 text-slate-900 pl-12 pr-6 py-4 rounded-xl focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/5 outline-none transition-all placeholder:text-slate-300 text-sm font-medium"
+                    placeholder="Número registrado (Ej: 300...)"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Nueva Contraseña</label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-rose-500 transition-colors" size={18} />
+                  <input
+                    type="password"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-100 text-slate-900 pl-12 pr-6 py-4 rounded-xl focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/5 outline-none transition-all placeholder:text-slate-300 text-sm font-medium"
+                    placeholder="Min 8 caracteres"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-rose-500 hover:bg-rose-600 text-white font-black py-4 sm:py-5 rounded-2xl transition-all shadow-xl shadow-rose-200 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 mt-6 h-14 sm:h-16"
+              >
+                {isLoading ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : (
+                  <span className="uppercase text-xs font-black tracking-[0.2em]">Restablecer Acceso</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setIsResetMode(false); setError(''); setSuccessMsg(''); }}
+                className="w-full mt-4 text-[10px] text-slate-500 hover:text-slate-800 font-bold uppercase tracking-widest transition-colors"
+              >
+                ← Volver al inicio de sesión
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">ID de Usuario</label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-green-500 transition-colors" size={18} />
                 <input
@@ -154,8 +268,19 @@ export const LoginPage: React.FC = () => {
                   <LogIn size={18} />
                 </>
               )}
-            </button>
-          </form>
+              </button>
+
+              <div className="flex justify-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsResetMode(true)}
+                  className="text-[10px] text-slate-400 hover:text-green-600 font-bold uppercase tracking-widest transition-colors underline decoration-slate-200 underline-offset-4"
+                >
+                  ¿Olvidaste tu contraseña secreta?
+                </button>
+              </div>
+            </form>
+          )}
 
           <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 text-center">
              <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserPlus, Shield, User as UserIcon, Mail, Phone, Lock, Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { UserPlus, Shield, User as UserIcon, Mail, Phone, Lock, Save, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import api from '../../shared/lib/api';
 import { useAuthStore } from '../../app/store/authStore';
 
@@ -8,6 +8,7 @@ export const UserManagementModule: React.FC = () => {
   const { user: currentUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -19,8 +20,11 @@ export const UserManagementModule: React.FC = () => {
     assignedCity: currentUser?.role === 'LOGISTICS' ? currentUser.assignedCity : 'Bogotá'
   });
 
-  const canCreateAdmins = currentUser?.role === 'ADMIN';
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN';
   const isLogistics = currentUser?.role === 'LOGISTICS';
+  const canCreateAdmins = isSuperAdmin; // Solo Super Admin puede crear Admins
+  const canCreateManagers = isSuperAdmin || isAdmin; // Admin puede crear Logística
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,13 +152,20 @@ export const UserManagementModule: React.FC = () => {
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-teal-500 transition-colors" size={18} />
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={formData.password}
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
                     placeholder="••••••••"
                     className="w-full bg-white border border-slate-200 px-12 py-4 rounded-2xl outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/5 transition-all text-sm font-bold"
                   />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
 
@@ -163,26 +174,36 @@ export const UserManagementModule: React.FC = () => {
                 <select
                   disabled={isLogistics}
                   value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                  onChange={(e) => {
+                    const newRole = e.target.value;
+                    setFormData({
+                      ...formData, 
+                      role: newRole,
+                      assignedCity: (newRole === 'ADMIN' || newRole === 'SUPER_ADMIN') ? 'Global' : formData.assignedCity
+                    });
+                  }}
                   className="w-full bg-white border border-slate-200 px-6 py-4 rounded-2xl outline-none focus:border-teal-500 transition-all text-sm font-black uppercase tracking-widest disabled:opacity-50"
                 >
                   <option value="DRIVER">Repartidor (DRIVER)</option>
-                  {canCreateAdmins && <option value="LOGISTICS">Operador Logístico</option>}
+                  {canCreateManagers && <option value="LOGISTICS">Operador Logístico</option>}
                   {canCreateAdmins && <option value="ADMIN">Administrador Regional</option>}
+                  {isSuperAdmin && <option value="SUPER_ADMIN">Arquitecto (SUPER_ADMIN)</option>}
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ciudad Asignada</label>
-                <input
-                    type="text"
-                    disabled={isLogistics}
-                    value={formData.assignedCity}
-                    onChange={(e) => setFormData({...formData, assignedCity: e.target.value})}
-                    placeholder="Ej: Medellín"
-                    className="w-full bg-white border border-slate-200 px-6 py-4 rounded-2xl outline-none focus:border-teal-500 transition-all text-sm font-bold disabled:opacity-50"
-                  />
-              </div>
+              {(formData.role === 'DRIVER' || formData.role === 'LOGISTICS') && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ciudad Asignada</label>
+                  <input
+                      type="text"
+                      disabled={isLogistics}
+                      value={formData.assignedCity}
+                      onChange={(e) => setFormData({...formData, assignedCity: e.target.value})}
+                      placeholder="Ej: Medellín"
+                      className="w-full bg-white border border-slate-200 px-6 py-4 rounded-2xl outline-none focus:border-teal-500 transition-all text-sm font-bold disabled:opacity-50"
+                    />
+                </div>
+              )}
             </div>
 
             {formData.role === 'DRIVER' && (
