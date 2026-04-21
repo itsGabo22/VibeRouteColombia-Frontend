@@ -1,29 +1,63 @@
-
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ProtectedRoute } from '../shared/components/ProtectedRoute';
-import { LoginPage } from '../pages/LoginPage';
-import { DashboardPage } from '../pages/DashboardPage';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { LoginPage } from '../ui/pages/LoginPage';
+import { AdminDashboardPage } from '../ui/pages/AdminDashboardPage';
+import { ManagerDashboardPage } from '../ui/pages/ManagerDashboardPage';
+import { DriverDashboardPage } from '../ui/pages/DriverDashboardPage';
 import { useAuthStore } from './store/authStore';
 
-function App() {
-  const token = useAuthStore((state) => state.token);
+const ProtectedRoute: React.FC<{ children: React.ReactElement; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
+  const { token, user } = useAuthStore();
+  
+  if (!token) return <Navigate to="/" />;
+  
+  if (allowedRoles && !allowedRoles.includes(user?.role || '')) {
+     if (user?.role === 'ADMIN') return <Navigate to="/admin" />;
+     if (user?.role === 'LOGISTICS') return <Navigate to="/manager" />;
+     if (user?.role === 'DRIVER') return <Navigate to="/operational" />;
+  }
+  
+  return children;
+};
+
+const App: React.FC = () => {
+  const { token, user } = useAuthStore();
 
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        <Route path="/login" element={token ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-        
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          {/* Default redirect to dashboard if authenticated */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-        
-        {/* Catch all to login if no route matches */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={
+          token ? (
+            user?.role === 'ADMIN' ? <Navigate to="/admin" /> :
+            user?.role === 'LOGISTICS' ? <Navigate to="/manager" /> :
+            <Navigate to="/operational" />
+          ) : (
+            <LoginPage />
+          )
+        } />
+
+        <Route path="/admin" element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminDashboardPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/manager" element={
+          <ProtectedRoute allowedRoles={['LOGISTICS']}>
+            <AdminDashboardPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/operational" element={
+          <ProtectedRoute allowedRoles={['DRIVER']}>
+            <DriverDashboardPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
-}
+};
 
 export default App;

@@ -2,14 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  display: flex;
-  min-width: 320px;
-  min-height: 100vh;
-  @apply bg-primary-light text-text-primary font-sans;
-}
+@layer base {
+  :root {
+    --primary: #2ECC7F;
+    --primary-dark: #1E8449;
+    --bg-main: #FFFFFF;
+    --bg-secondary: #F8FAFC;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --border: #E2E8F0;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+  }
 
-#root {
-  width: 100%;
+  body {
+    @apply bg-white text-slate-900;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
 }
