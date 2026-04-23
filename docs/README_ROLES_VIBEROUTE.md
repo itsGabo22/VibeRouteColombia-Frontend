@@ -9,7 +9,7 @@ Este documento define la arquitectura de roles y el flujo de trabajo financiero 
 ### 1. 🥇 Administrador (Estrategia y Finanzas)
 *Responsabilidad:* Supervisar la rentabilidad total y la salud de la flota.
 
-*   *Funciones Clave:*
+*   *Funciones Claves:*
     *   *Dashboard de Rentabilidad:* Monitoreo en tiempo real de Ingresos vs. Gastos Operativos.
     *   *Auditoría de Reportes:* Revisión de facturas y manifiestos PDF subidos por Logística.
     *   *Gestión de Ranking:* Identificación de conductores de alto rendimiento para incentivos.
