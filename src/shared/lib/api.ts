@@ -18,9 +18,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.warn("Token inválido o expirado. Cerrando sesión...");
-      useAuthStore.getState().logout();
-      window.location.href = '/';
+      // Si no es un intento de login, cerramos sesión por token expirado
+      if (!error.config.url?.includes('/auth/login')) {
+        console.warn("Token inválido o expirado. Cerrando sesión...");
+        useAuthStore.getState().logout();
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }

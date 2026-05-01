@@ -42,6 +42,7 @@ export const UserManagementModule: React.FC = () => {
       // Codificamos la contraseña en Base64 para el transporte seguro
       const payload = {
         ...formData,
+        email: formData.email.toLowerCase(),
         password: btoa(formData.password)
       };
 
@@ -137,10 +138,10 @@ export const UserManagementModule: React.FC = () => {
                 <div className="relative group">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-teal-500 transition-colors" size={18} />
                   <input
-                    type="text"
+                    type="tel"
                     required
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '')})}
                     placeholder="+57 300..."
                     className="w-full bg-white border border-slate-200 px-12 py-4 rounded-2xl outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/5 transition-all text-sm font-bold"
                   />
