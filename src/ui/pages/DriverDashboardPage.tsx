@@ -198,7 +198,7 @@ export const DriverDashboardPage: React.FC = () => {
                  exit={{ opacity: 0 }}
                  className="h-full w-full absolute inset-0 z-0"
               >
-                 <MapsNavigationModule driverId={driverId} />
+                 <MapsNavigationModule />
               </motion.div>
             )}
           </AnimatePresence>

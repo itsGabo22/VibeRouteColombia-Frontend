@@ -113,10 +113,10 @@ export const LoginPage: React.FC = () => {
 
     if (isResetMode) {
       try {
-        await api.post('/auth/reset-password', { 
-          email: email.toLowerCase(), 
-          phone, 
-          newPassword: btoa(newPassword) 
+        await api.post('/auth/reset-password', {
+          email: email.toLowerCase(),
+          phone,
+          newPassword: btoa(newPassword)
         });
         setIsSuccess(true);
         setError('Solicitud enviada. Un administrador debe aprobar el cambio antes de que puedas usar tu nueva clave.');
@@ -215,8 +215,8 @@ export const LoginPage: React.FC = () => {
               {isResetMode ? 'Recuperar' : 'Acceso'} <span className="text-green-400">{isResetMode ? 'Acceso' : 'Operativo'}</span>
             </h1>
             <p className="text-slate-400 text-sm font-medium">
-              {isResetMode 
-                ? 'Ingresa tu correo para recibir un enlace de restablecimiento.' 
+              {isResetMode
+                ? 'Ingresa tu correo para recibir un enlace de restablecimiento.'
                 : 'Ingresa tus credenciales para acceder al panel central.'}
             </p>
           </div>
@@ -228,9 +228,8 @@ export const LoginPage: React.FC = () => {
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden mb-6"
               >
-                <div className={`p-4 border rounded-2xl flex items-center gap-3 ${
-                  isSuccess ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'
-                }`}>
+                <div className={`p-4 border rounded-2xl flex items-center gap-3 ${isSuccess ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'
+                  }`}>
                   <AlertCircle className={isSuccess ? 'text-green-400 shrink-0' : 'text-red-400 shrink-0'} size={20} />
                   <p className={`text-sm font-medium ${isSuccess ? 'text-green-200' : 'text-red-200'}`}>{error}</p>
                 </div>
@@ -290,7 +289,7 @@ export const LoginPage: React.FC = () => {
 
             {!isResetMode && (
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Código de Seguridad</label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Contraseña</label>
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-400 transition-colors" size={20} />
                   <input
