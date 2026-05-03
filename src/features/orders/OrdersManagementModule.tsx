@@ -73,6 +73,11 @@ export const OrdersManagementModule: React.FC<{
   };
 
   const handleUpdateStatus = async (orderId: number, nextStatus: string, reason?: string) => {
+    if (!orderId && orderId !== 0) {
+      console.error("Cannot update order: orderId is undefined/null", { orderId, nextStatus });
+      alert("Error: No se pudo identificar el pedido. Intenta recargar la página.");
+      return;
+    }
     try {
       setIsUpdating(true);
       const url = reason 
@@ -90,7 +95,8 @@ export const OrdersManagementModule: React.FC<{
       if (onUpdate) onUpdate();
     } catch (err: any) {
       console.error("Error updating order:", err);
-      alert("Error al actualizar: " + (err.response?.data?.error || "Servidor no disponible"));
+      const serverMessage = err.response?.data?.error || err.response?.data?.message || "Servidor no disponible";
+      alert("Error al actualizar: " + serverMessage);
     } finally {
       setIsUpdating(false);
     }
@@ -231,93 +237,135 @@ export const OrdersManagementModule: React.FC<{
 
       <AnimatePresence>
         {selectedOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedOrder(null)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              onClick={() => { setSelectedOrder(null); setIsNovedadOpen(false); }}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden relative z-10"
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 60 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+              className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl relative z-10 max-h-[90vh] flex flex-col"
             >
-              <div className="p-12 space-y-10">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-3">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-100">
-                      <Package size={12} /> Ficha Técnica de Pedido
-                    </div>
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic">#{selectedOrder.id} • {selectedOrder.clientReference}</h2>
+              {/* Close Button — Always visible, sticky */}
+              <button 
+                onClick={() => { setSelectedOrder(null); setIsNovedadOpen(false); }}
+                className="absolute top-5 right-5 z-20 w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-2xl flex items-center justify-center transition-all active:scale-90"
+              >
+                <X size={18} />
+              </button>
+
+              {/* Scrollable Content */}
+              <div className="p-8 sm:p-10 space-y-6 overflow-y-auto flex-1">
+                {/* Header */}
+                <div className="pr-10 space-y-2">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest border border-green-100">
+                      <Package size={10} /> Pedido
+                    </span>
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${statusMap[selectedOrder.status]?.color || 'bg-slate-100 text-slate-400'}`}>
+                      {React.createElement(statusMap[selectedOrder.status]?.icon || Info, { size: 10 })}
+                      {statusMap[selectedOrder.status]?.label || selectedOrder.status}
+                    </span>
+                    {selectedOrder.priority && (
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${priorityMap[selectedOrder.priority]?.color || 'bg-slate-100 text-slate-400'}`}>
+                        {priorityMap[selectedOrder.priority]?.label || selectedOrder.priority}
+                      </span>
+                    )}
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="p-4 bg-slate-50 text-slate-400 rounded-3xl hover:bg-slate-100 transition-all">
-                    <X size={20} />
-                  </button>
+                  <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tighter">
+                    #{selectedOrder.id} <span className="text-slate-400">•</span> {selectedOrder.clientReference}
+                  </h2>
                 </div>
 
-                <div className="grid grid-cols-2 gap-8 ring-1 ring-slate-100 p-8 rounded-[2rem] bg-slate-50/30">
+                {/* Info Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-2xl bg-slate-50/60 border border-slate-100">
                   <div className="space-y-1">
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Cliente</p>
-                    <p className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2"><User size={16} className="text-slate-300" /> {selectedOrder.clientName}</p>
+                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Cliente</p>
+                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <User size={14} className="text-slate-300" /> {selectedOrder.clientName || 'Sin nombre'}
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Destino</p>
-                    <p className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2"><MapPin size={16} className="text-slate-300" /> {selectedOrder.address}</p>
-                    <p className="text-xs text-slate-400 font-bold uppercase">{selectedOrder.city}, COLOMBIA</p>
+                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Destino</p>
+                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <MapPin size={14} className="text-slate-300" /> {selectedOrder.address}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">{selectedOrder.city}, Colombia</p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Trazabilidad de Entrega</h4>
-                  <div className="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                    <div className="flex gap-6 relative z-10">
-                       <div className="w-6 h-6 bg-green-500 rounded-full border-4 border-white shadow-xl shadow-green-100 flex items-center justify-center"></div>
-                       <div className="space-y-1 bg-white p-4 rounded-3xl border border-slate-50 shadow-sm flex-1">
-                          <p className="text-xs font-black text-slate-900 tracking-tight">Recibido en Centro Logístico</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase italic">Bogotá • 08:30 AM</p>
-                       </div>
+                {/* Timeline */}
+                <div className="space-y-3">
+                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Trazabilidad</h4>
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 bg-green-500 rounded-full border-[3px] border-white shadow-lg shadow-green-100 shrink-0"></div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-800">Recibido en Centro Logístico</p>
                     </div>
-                    <div className="flex gap-6 relative z-10">
-                       <div className={`w-6 h-6 ${selectedOrder.status !== 'PENDING' ? 'bg-green-500 shadow-green-100' : 'bg-slate-200'} rounded-full border-4 border-white shadow-xl flex items-center justify-center`}></div>
-                       <div className="space-y-1 bg-white p-4 rounded-3xl border border-slate-50 shadow-sm flex-1">
-                          <p className="text-xs font-black text-slate-900 tracking-tight">En Ruta de Entrega</p>
-                          <p className={`text-[10px] font-bold uppercase italic ${selectedOrder.status !== 'PENDING' ? 'text-slate-400' : 'text-slate-200'}`}>Asignado a Conductor</p>
-                       </div>
+                    <div className={`w-5 h-5 rounded-full border-[3px] border-white shadow-lg shrink-0 ${
+                      ['ON_ROUTE','DELIVERED'].includes(selectedOrder.status) ? 'bg-green-500 shadow-green-100' : 'bg-slate-200'
+                    }`}></div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-800">En Ruta</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-[3px] border-white shadow-lg shrink-0 ${
+                      selectedOrder.status === 'DELIVERED' ? 'bg-green-500 shadow-green-100' : 
+                      ['CANCELLED','RETURNED'].includes(selectedOrder.status) ? 'bg-red-400 shadow-red-100' : 'bg-slate-200'
+                    }`}></div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-800">
+                        {selectedOrder.status === 'DELIVERED' ? 'Entregado' : 
+                         selectedOrder.status === 'CANCELLED' ? 'Cancelado' : 
+                         selectedOrder.status === 'RETURNED' ? 'Devuelto' : 'Destino'}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {driverName && (
-                  <div className="grid grid-cols-2 gap-4">
-                     <button 
-                        disabled={isUpdating || selectedOrder.status === 'DELIVERED'}
-                        onClick={() => handleUpdateStatus(selectedOrder.id, 'DELIVERED')}
-                        className={`py-6 rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${
-                          selectedOrder.status === 'DELIVERED' 
-                            ? 'bg-green-500 text-white opacity-50 cursor-not-allowed' 
-                            : 'bg-green-500 text-white hover:bg-green-600 shadow-green-200'
-                        }`}
-                     >
-                        {isUpdating ? <Loader2 size={20} className="animate-spin" /> : <><CheckCircle2 size={20} /> Confirmar Entrega</>}
-                     </button>
-                     <button 
-                        disabled={isUpdating || selectedOrder.status === 'DELIVERED'}
-                        onClick={() => setIsNovedadOpen(true)}
-                        className="py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-slate-200 transition-all hover:bg-slate-800 active:scale-95"
-                     >
-                        <AlertTriangle size={20} className="text-amber-500" /> Reportar Novedad
-                     </button>
+                {/* Novedad Reason Display */}
+                {selectedOrder.nonDeliveryReason && (
+                  <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                    <p className="text-[9px] text-red-400 font-black uppercase tracking-widest mb-1">Motivo de Novedad</p>
+                    <p className="text-xs font-bold text-red-800 italic">"{selectedOrder.nonDeliveryReason}"</p>
                   </div>
                 )}
 
-                {selectedOrder.nonDeliveryReason && (
-                   <div className="p-6 bg-red-50 rounded-3xl border border-red-100 animate-pulse">
-                      <p className="text-[10px] text-red-400 font-black uppercase tracking-widest mb-1">Motivo de Novedad</p>
-                      <p className="text-xs font-bold text-red-900 italic">" {selectedOrder.nonDeliveryReason} "</p>
-                   </div>
+                {/* Action Buttons — Only for drivers, only for actionable statuses */}
+                {driverName && !['DELIVERED', 'CANCELLED', 'RETURNED'].includes(selectedOrder.status) && (
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button 
+                      disabled={isUpdating}
+                      onClick={() => handleUpdateStatus(selectedOrder.id, 'DELIVERED')}
+                      className="py-5 bg-green-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-green-200 hover:bg-green-600 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {isUpdating ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle2 size={18} /> Confirmar</>}
+                    </button>
+                    <button 
+                      disabled={isUpdating}
+                      onClick={() => setIsNovedadOpen(true)}
+                      className="py-5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      <AlertTriangle size={18} className="text-amber-400" /> Novedad
+                    </button>
+                  </div>
+                )}
+
+                {/* Already completed status banner */}
+                {driverName && ['DELIVERED', 'CANCELLED', 'RETURNED'].includes(selectedOrder.status) && (
+                  <div className={`p-4 rounded-2xl text-center text-xs font-black uppercase tracking-widest ${
+                    selectedOrder.status === 'DELIVERED' ? 'bg-green-50 text-green-600 border border-green-100' :
+                    selectedOrder.status === 'CANCELLED' ? 'bg-red-50 text-red-600 border border-red-100' :
+                    'bg-amber-50 text-amber-600 border border-amber-100'
+                  }`}>
+                    {React.createElement(statusMap[selectedOrder.status]?.icon || Info, { size: 16, className: 'inline mr-2' })}
+                    Pedido {statusMap[selectedOrder.status]?.label}
+                  </div>
                 )}
               </div>
             </motion.div>
@@ -328,7 +376,7 @@ export const OrdersManagementModule: React.FC<{
       {/* Novedad Logic Modal */}
       <AnimatePresence>
         {isNovedadOpen && selectedOrder && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
              <motion.div 
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
@@ -337,18 +385,27 @@ export const OrdersManagementModule: React.FC<{
                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
              />
              <motion.div 
-               initial={{ opacity: 0, scale: 0.9, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-               className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl relative z-10 overflow-hidden"
+               initial={{ opacity: 0, y: 60 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: 60 }}
+               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+               className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl relative z-10"
              >
-                <div className="p-10 space-y-8">
-                   <div className="space-y-2">
-                      <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em]">Gestión de Incidencias</p>
-                      <h3 className="text-3xl font-black text-slate-900 tracking-tighter">¿Qué sucedió con el pedido?</h3>
+                {/* Close Button */}
+                <button 
+                  onClick={() => setIsNovedadOpen(false)}
+                  className="absolute top-5 right-5 z-20 w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-2xl flex items-center justify-center transition-all active:scale-90"
+                >
+                  <X size={18} />
+                </button>
+
+                <div className="p-8 sm:p-10 space-y-6">
+                   <div className="space-y-2 pr-10">
+                      <p className="text-[9px] font-black text-amber-500 uppercase tracking-[0.3em]">Gestión de Incidencias</p>
+                      <h3 className="text-2xl font-black text-slate-900 tracking-tighter">¿Qué sucedió con el pedido?</h3>
                    </div>
 
-                   <div className="flex gap-4">
+                   <div className="flex gap-3">
                       {(['CANCELLED', 'RETURNED'] as const).map(status => (
                          <button
                            key={status}
@@ -359,15 +416,18 @@ export const OrdersManagementModule: React.FC<{
                                : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                            }`}
                          >
-                            {status === 'CANCELLED' ? <div className="flex items-center justify-center gap-2"><XCircle size={14}/> CANCELADO</div> : <div className="flex items-center justify-center gap-2"><AlertTriangle size={14}/> DEVUELTO</div>}
+                            {status === 'CANCELLED' 
+                              ? <div className="flex items-center justify-center gap-2"><XCircle size={14}/> Cancelado</div> 
+                              : <div className="flex items-center justify-center gap-2"><AlertTriangle size={14}/> Devuelto</div>
+                            }
                          </button>
                       ))}
                    </div>
 
-                   <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motivo detallado (Obligatorio)</label>
+                   <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Motivo detallado (Obligatorio)</label>
                       <textarea 
-                        className="w-full bg-slate-50 border-none rounded-3xl p-6 text-sm font-medium focus:ring-4 focus:ring-amber-500/10 min-h-[120px] resize-none"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-200 min-h-[100px] resize-none transition-all"
                         placeholder="Ej: Cliente no se encontraba en casa, dirección incorrecta..."
                         value={novedadReason}
                         onChange={(e) => setNovedadReason(e.target.value)}
@@ -377,9 +437,9 @@ export const OrdersManagementModule: React.FC<{
                    <button
                      disabled={!novedadReason.trim() || isUpdating}
                      onClick={() => handleUpdateStatus(selectedOrder.id, novedadStatus, novedadReason)}
-                     className="w-full py-6 bg-amber-500 text-white rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-amber-100 hover:bg-amber-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                     className="w-full py-5 bg-amber-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-amber-100 hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                    >
-                      {isUpdating ? <Loader2 size={20} className="animate-spin" /> : 'Confirmar Reporte'}
+                      {isUpdating ? <Loader2 size={18} className="animate-spin" /> : 'Confirmar Reporte'}
                    </button>
                 </div>
              </motion.div>

@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../app/store/authStore';
 import { useMissionStore } from '../../app/store/missionStore';
 import { GeminiInsightModule } from '../../features/ai/GeminiInsightModule';
+import { DriverCopilotBanner } from '../../features/ai/DriverCopilotBanner';
 import api from '../../shared/lib/api';
 import { OrdersManagementModule } from '../../features/orders/OrdersManagementModule';
 import { MapsNavigationModule } from '../../features/rutas/MapsNavigationModule';
@@ -31,8 +32,9 @@ export const DriverDashboardPage: React.FC = () => {
   const [driverId, setDriverId] = useState<number>(0);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ delivered: 0, pending: 0, totalValue: 0 });
+  const [stats, setStats] = useState({ delivered: 0, pending: 0, cancelled: 0, returned: 0, hours: 0, totalValue: 0 });
   const [nextOrder, setNextOrder] = useState<any>(null);
+  const [copilotTips, setCopilotTips] = useState<string>('');
 
   const fetchData = async () => {
     try {
@@ -44,14 +46,33 @@ export const DriverDashboardPage: React.FC = () => {
       if (myBatch) {
         if (myBatch.driver?.id) setDriverId(myBatch.driver.id);
         startMission(myBatch.id);
+        if (myBatch.aiCopilotTips) setCopilotTips(myBatch.aiCopilotTips);
         
         if (myBatch.orders) {
           const allOrders = myBatch.orders;
           setOrders(allOrders);
           const delivered = allOrders.filter((o: any) => o.status === 'DELIVERED').length;
           const pending = allOrders.filter((o: any) => o.status === 'PENDING' || o.status === 'ON_ROUTE').length;
+          const cancelled = allOrders.filter((o: any) => o.status === 'CANCELLED').length;
+          const returned = allOrders.filter((o: any) => o.status === 'RETURNED').length;
           const totalValue = allOrders.reduce((sum: number, o: any) => sum + (o.price || 0), 0);
-          setStats({ delivered, pending, totalValue });
+          
+          const timestamps = allOrders
+            .map((o:any) => o.actualDeliveryTime)
+            .filter(Boolean)
+            .map((t:string) => new Date(t).getTime());
+            
+          let hours = 0.5;
+          if (timestamps.length > 0) {
+            const minTime = Math.min(...timestamps);
+            const maxTime = Math.max(...timestamps);
+            if (maxTime > minTime) {
+              hours = Number(((maxTime - minTime) / (1000 * 60 * 60)).toFixed(1));
+            }
+          }
+          if (hours < 0.1) hours = 0.5;
+
+          setStats({ delivered, pending, cancelled, returned, hours, totalValue });
           const next = allOrders.find((o: any) => o.status === 'PENDING' || o.status === 'ON_ROUTE');
           setNextOrder(next);
         }
@@ -127,6 +148,15 @@ export const DriverDashboardPage: React.FC = () => {
             </div>
           )}
 
+          {/* AI Copilot Banner — shows progressive tips based on delivery stats */}
+          {view === 'summary' && copilotTips && (
+            <DriverCopilotBanner
+              tipsJson={copilotTips}
+              stats={{ delivered: stats.delivered, pending: stats.pending, total: orders.length }}
+              driverName={user?.name?.split(' ')[0]}
+            />
+          )}
+
           <AnimatePresence mode="wait">
             {view === 'summary' ? (
               <motion.div 
@@ -177,7 +207,7 @@ export const DriverDashboardPage: React.FC = () => {
                      </div>
                      <h3 className="text-2xl font-black text-slate-900 mb-2">¡Todo al día!</h3>
                      <p className="text-slate-400 text-sm mb-8">Has completado tus entregas.</p>
-                     <GeminiInsightModule stats={{ delivered: stats.delivered, pending: 0, hours: 4, city: 'Pasto' }} />
+                     <GeminiInsightModule stats={{ delivered: stats.delivered, pending: 0, cancelled: stats.cancelled, returned: stats.returned, hours: stats.hours, city: 'Pasto' }} />
                   </div>
                 )}
               </motion.div>

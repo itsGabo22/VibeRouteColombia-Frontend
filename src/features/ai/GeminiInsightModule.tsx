@@ -14,6 +14,8 @@ interface GeminiInsightProps {
   stats: {
     delivered: number;
     pending: number;
+    cancelled: number;
+    returned: number;
     hours: number;
     city: string;
   };
@@ -23,14 +25,21 @@ export const GeminiInsightModule: React.FC<GeminiInsightProps> = ({ stats }) => 
   const [insight, setInsight] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
+  // Dynamic Efficiency Score Calculation
+  const total = stats.delivered + stats.cancelled + stats.returned + stats.pending;
+  const efficiencyScore = total > 0 ? Math.round((stats.delivered / total) * 100) : 0;
+
   const generateInsight = async () => {
     setLoading(true);
     try {
       const { data } = await api.post('/ai/daily-summary', {
         totalDelivered: stats.delivered,
         totalPending: stats.pending,
+        totalCancelled: stats.cancelled,
+        totalReturned: stats.returned,
         totalHours: stats.hours,
-        city: stats.city
+        city: stats.city,
+        efficiencyScore: efficiencyScore
       });
       setInsight(data.summary);
     } catch (err) {
@@ -41,7 +50,7 @@ export const GeminiInsightModule: React.FC<GeminiInsightProps> = ({ stats }) => 
   };
 
   useEffect(() => {
-    if (stats.delivered > 0 || stats.pending > 0) {
+    if (total > 0) {
       generateInsight();
     }
   }, [stats]);
@@ -100,14 +109,14 @@ export const GeminiInsightModule: React.FC<GeminiInsightProps> = ({ stats }) => 
               <p className="text-[8px] text-indigo-300 font-black uppercase tracking-widest mb-1">Score de Eficiencia</p>
               <div className="flex items-center gap-2">
                  <Zap size={14} className="text-amber-400" />
-                 <span className="text-xl font-black">{stats.delivered > 0 ? '94%' : '0%'}</span>
+                 <span className="text-xl font-black">{efficiencyScore}%</span>
               </div>
            </div>
            
            <div className="bg-white/5 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10">
               <p className="text-[8px] text-indigo-300 font-black uppercase tracking-widest mb-1">Sugerencia</p>
               <p className="text-xs font-bold text-white flex items-center gap-2">
-                Optimizar zona Norte <ChevronRight size={14} className="text-indigo-400" />
+                Mantener este ritmo <ChevronRight size={14} className="text-indigo-400" />
               </p>
            </div>
         </div>

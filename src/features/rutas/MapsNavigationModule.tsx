@@ -82,7 +82,23 @@ export const MapsNavigationModule: React.FC = () => {
       setRouteVersion(prev => prev + 1); // Incrementar versión para forzar re-render LIMPIO
 
       const ds = new google.maps.DirectionsService();
-      const stops = optRoute.stops.map((s: any) => ({
+      
+      const activeOrders = optRoute.stops.filter((s: any) => 
+        !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(s.status)
+      );
+
+      if (activeOrders.length === 0) {
+        setActivePath([]);
+        setFuturePath([]);
+        setEtaInfo(null);
+        if (reqId === lastRequestId.current) {
+          setOptimizing(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const stops = activeOrders.map((s: any) => ({
         location: { lat: Number(s.lat || s.location?.lat), lng: Number(s.lng || s.location?.lng) },
         stopover: true
       }));
@@ -212,15 +228,25 @@ export const MapsNavigationModule: React.FC = () => {
       >
         {/* POLILÍNEAS MANUALES CONTROLADAS POR REF (Ver useEffect abajo) */}
 
-        {displayStops.map((stop: any, idx: number) => (
-          <MarkerF
-            key={`${stop.id || idx}-v${routeVersion}`}
-            position={{ lat: stop.lat, lng: stop.lng }}
-            onClick={() => setSelectedOrder(stop)}
-            label={{ text: (idx + 1).toString(), color: 'white', fontWeight: '900', fontSize: '11px' }}
-            icon={{ path: google.maps.SymbolPath.CIRCLE, fillColor: idx === 0 ? '#fbbf24' : '#f43f5e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 8 }}
-          />
-        ))}
+        {displayStops.map((stop: any, idx: number) => {
+          const isCompleted = ['DELIVERED', 'RETURNED', 'CANCELLED'].includes(stop.status);
+          return (
+            <MarkerF
+              key={`${stop.id || idx}-v${routeVersion}`}
+              position={{ lat: stop.lat, lng: stop.lng }}
+              onClick={() => setSelectedOrder(stop)}
+              label={{ text: (idx + 1).toString(), color: 'white', fontWeight: '900', fontSize: '11px' }}
+              icon={{ 
+                path: google.maps.SymbolPath.CIRCLE, 
+                fillColor: isCompleted ? '#94a3b8' : (idx === 0 ? '#fbbf24' : '#f43f5e'), 
+                fillOpacity: isCompleted ? 0.8 : 1, 
+                strokeColor: '#fff', 
+                strokeWeight: 2, 
+                scale: isCompleted ? 6 : 8 
+              }}
+            />
+          );
+        })}
 
         {selectedOrder && (
           <InfoWindowF position={{ lat: selectedOrder.lat, lng: selectedOrder.lng }} onCloseClick={() => setSelectedOrder(null)}>
