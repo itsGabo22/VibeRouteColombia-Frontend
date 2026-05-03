@@ -232,7 +232,7 @@ export const MapsNavigationModule: React.FC = () => {
                 <span className="text-[10px] font-bold text-slate-400">#{selectedOrder.id.toString().slice(-4)}</span>
               </div>
               <div className="space-y-3">
-                <div className="flex items-start gap-3"><User className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Cliente</p><p className="text-sm font-black text-slate-900">{selectedOrder.clientName || 'Cliente VibeRoute'}</p></div></div>
+                <div className="flex items-start gap-3"><User className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Cliente</p><p className="text-sm font-black text-slate-900">{selectedOrder.clientName || selectedOrder.client_name || 'Cliente VibeRoute'}</p></div></div>
                 <div className="flex items-start gap-3"><MapPin className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Entrega en</p><p className="text-[11px] font-bold text-slate-600 leading-tight">{selectedOrder.address}</p></div></div>
                 <div className="flex items-start gap-3"><Phone className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Contacto</p><a href={`tel:${selectedOrder.phone || '3000000000'}`} className="text-[11px] font-black text-emerald-600 underline decoration-emerald-200">{selectedOrder.phone || 'Llamar al cliente'}</a></div></div>
               </div>

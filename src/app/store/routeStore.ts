@@ -30,6 +30,13 @@ export const useRouteStore = create<RouteState>()(
       setShowPOIs: (showPOIs) => set({ showPOIs }),
       clear: () => set({ route: null, backupOrders: [], mapTheme: 'light', showPOIs: false }),
     }),
-    { name: 'viberoute-navigation-storage' }
+    { 
+      name: 'viberoute-navigation-storage',
+      partialize: (state) => ({ 
+        driverPos: state.driverPos, 
+        mapTheme: state.mapTheme, 
+        showPOIs: state.showPOIs 
+      })
+    }
   )
 );

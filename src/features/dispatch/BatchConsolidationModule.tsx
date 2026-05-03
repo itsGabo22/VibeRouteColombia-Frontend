@@ -7,10 +7,13 @@ import {
   TrendingUp,
   MapPin,
   Clock,
-  Plus
+  Plus,
+  Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
+import { SmartDispatchModal } from './SmartDispatchModal';
+import { FleetMonitorModule } from './FleetMonitorModule';
 
 interface Order {
   id: number;
@@ -24,11 +27,13 @@ export const BatchConsolidationModule: React.FC<{ city?: string; searchQuery?: s
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [smartPlan, setSmartPlan] = useState<any>(null);
+  const [showSmartModal, setShowSmartModal] = useState(false);
 
   const fetchPendingOrders = async () => {
     try {
       const { data } = await api.get('/orders/pending', { params: { city } });
-      // Doble validación en frontend para evitar fugas entre ciudades
       const filtered = city 
         ? data.filter((o: any) => o.city?.toLowerCase() === city.toLowerCase())
         : data;
@@ -76,8 +81,34 @@ export const BatchConsolidationModule: React.FC<{ city?: string; searchQuery?: s
     }
   };
 
+  const handleSuggestPlan = async () => {
+    if (smartPlan) {
+      setShowSmartModal(true);
+      return;
+    }
+    setSuggesting(true);
+    try {
+      const { data } = await api.get('/batches/smart-dispatch/suggest', { params: { city } });
+      setSmartPlan(data);
+      setShowSmartModal(true);
+    } catch (err) {
+      console.error(err);
+      alert('Error al generar la autoplanificación.');
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {showSmartModal && smartPlan && (
+        <SmartDispatchModal 
+          plan={smartPlan} 
+          onClose={() => setShowSmartModal(false)} 
+          onComplete={() => { setSmartPlan(null); setShowSmartModal(false); onComplete(); }} 
+        />
+      )}
+
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
          <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center shadow-sm border border-slate-100">
@@ -93,6 +124,14 @@ export const BatchConsolidationModule: React.FC<{ city?: string; searchQuery?: s
 
          <div className="flex items-center gap-4">
             <button
+               onClick={handleSuggestPlan}
+               disabled={suggesting || orders.length === 0}
+               className="px-6 py-4 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2"
+            >
+               {suggesting ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />}
+               Autoplanificar IA
+            </button>
+            <button
                onClick={selectAll}
                className="px-6 py-4 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-teal-400 transition-all"
             >
@@ -104,7 +143,7 @@ export const BatchConsolidationModule: React.FC<{ city?: string; searchQuery?: s
                className={`px-10 py-5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 shadow-2xl disabled:opacity-20 ${selectedIds.length > 0 ? 'hover:bg-teal-600 active:scale-95' : ''}`}
             >
                {saving ? <Loader2 size={16} className="animate-spin" /> : <TrendingUp size={16} className={selectedIds.length > 0 ? 'animate-pulse' : ''} />}
-               Empaquetar {selectedIds.length} Pedidos
+               Empaquetar {selectedIds.length}
             </button>
          </div>
       </div>
@@ -149,6 +188,11 @@ export const BatchConsolidationModule: React.FC<{ city?: string; searchQuery?: s
               No hay pedidos pendientes de consolidación. 👋
            </div>
          )}
+      </div>
+
+      {/* SECCIÓN DE SUPERVISIÓN DE FLOTA REAL-TIME */}
+      <div className="border-t border-slate-100 pt-10 mt-10">
+        <FleetMonitorModule />
       </div>
     </div>
   );

@@ -37,7 +37,18 @@ export const BulkImportModule: React.FC<{ onComplete?: () => void }> = ({ onComp
     reader.onload = (e) => {
       try {
         const json = JSON.parse(e.target?.result as string);
-        setData(Array.isArray(json) ? json : [json]);
+        const rawList = Array.isArray(json) ? json : [json];
+        
+        // Mapeo defensivo para asegurar compatibilidad con el DTO del backend
+        const mappedData = rawList.map((item: any) => ({
+          ...item,
+          // Si vienen lat/lng sueltos, envolverlos en location
+          location: item.location || (item.lat && item.lng ? { lat: item.lat, lng: item.lng } : undefined),
+          // Mapear NORMAL a MEDIUM (compatibilidad de enums)
+          priority: item.priority === 'NORMAL' ? 'MEDIUM' : item.priority || 'MEDIUM'
+        }));
+
+        setData(mappedData);
         setStatus('idle');
       } catch (err) {
         alert("Error al parsear el JSON. Asegúrate de que el formato es correcto.");
