@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, Polyline } from '@react-google-maps/api';
-import { Loader2, Navigation, Clock, MapPin, Box, Target, Sun, Moon, Phone, User, AlertCircle } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api';
+import { Loader2, Navigation, Clock, MapPin, Box, Target, Sun, Moon, Phone, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
 import { useMissionStore } from '../../app/store/missionStore';
@@ -23,9 +23,8 @@ export const MapsNavigationModule: React.FC = () => {
   const [activePath, setActivePath] = useState<google.maps.LatLngLiteral[]>([]);
   const [futurePath, setFuturePath] = useState<google.maps.LatLngLiteral[]>([]);
   const [etaInfo, setEtaInfo] = useState<{distance: string, duration: string} | null>(null);
-  const [routeVersion, setRouteVersion] = useState(0); // KEY ESTABLE PARA EVITAR SOLAPAMIENTOS
+  const [routeVersion, setRouteVersion] = useState(0); 
   
-  // REFERENCIAS PARA LIMPIEZA MANUAL (LA CURA DEFINITIVA)
   const activePolylineRef = useRef<google.maps.Polyline | null>(null);
   const futurePolylineRef = useRef<google.maps.Polyline | null>(null);
   
@@ -49,17 +48,20 @@ export const MapsNavigationModule: React.FC = () => {
     { "featureType": "water", "stylers": [{ "color": mapTheme === 'light' ? "#cbd5e1" : "#050d14" }] }
   ], [mapTheme]);
 
-  // RESET TOTAL AL MONTAR EL COMPONENTE (Mata el fantasma del almacén global)
+  // Limpiar solo el estado LOCAL de ruta al montar. NO tocar backupOrders del store
+  // (ya fueron cargados por DriverDashboardPage antes de montar este componente).
   useEffect(() => {
-    setRoute(null);
-    setBackupOrders([]);
     setActivePath([]);
     setFuturePath([]);
     setEtaInfo(null);
+    setRoute(null);
   }, []);
 
   const syncRoute = useCallback(async (targetMode: 'EFFICIENCY' | 'PRIORITY') => {
-    if (!currentBatchId || !driverPos || !isLoaded) return;
+    if (!currentBatchId || !driverPos || !isLoaded) {
+       setLoading(false);
+       return;
+    }
 
     const reqId = ++lastRequestId.current;
     setOptimizing(true);
@@ -79,26 +81,10 @@ export const MapsNavigationModule: React.FC = () => {
       if (reqId !== lastRequestId.current) return;
       
       setRoute(optRoute);
-      setRouteVersion(prev => prev + 1); // Incrementar versión para forzar re-render LIMPIO
+      setRouteVersion(prev => prev + 1);
 
       const ds = new google.maps.DirectionsService();
-      
-      const activeOrders = optRoute.stops.filter((s: any) => 
-        !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(s.status)
-      );
-
-      if (activeOrders.length === 0) {
-        setActivePath([]);
-        setFuturePath([]);
-        setEtaInfo(null);
-        if (reqId === lastRequestId.current) {
-          setOptimizing(false);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const stops = activeOrders.map((s: any) => ({
+      const stops = optRoute.stops.map((s: any) => ({
         location: { lat: Number(s.lat || s.location?.lat), lng: Number(s.lng || s.location?.lng) },
         stopover: true
       }));
@@ -130,12 +116,16 @@ export const MapsNavigationModule: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [currentBatchId, driverPos, isLoaded, setRoute, setBackupOrders]);
+  }, [currentBatchId, driverPos, isLoaded, setRoute]);
 
-  // DISPARADORES DE SINCRONIZACIÓN (Controlados por modo y GPS inicial)
+  // DISPARADORES DE SINCRONIZACIÓN
   useEffect(() => {
-    if (isLoaded && currentBatchId && driverPos) {
-       syncRoute(optMode);
+    if (!isLoaded) return;
+    if (currentBatchId && driverPos) {
+      syncRoute(optMode);
+    } else {
+      // API cargada pero sin lote o sin GPS aún: mostrar mapa con backupOrders
+      setLoading(false);
     }
   }, [optMode, currentBatchId, !!driverPos, isLoaded]);
 
@@ -146,12 +136,7 @@ export const MapsNavigationModule: React.FC = () => {
         (p) => {
           const np = { lat: p.coords.latitude, lng: p.coords.longitude };
           setDriverPos(np);
-          if (isFollowing && mapRef.current) {
-             mapRef.current.panTo(np);
-             if (p.coords.heading != null && !Number.isNaN(p.coords.heading)) {
-                 mapRef.current.setHeading(p.coords.heading);
-             }
-          }
+          if (isFollowing && mapRef.current) mapRef.current.panTo(np);
         },
         null, { enableHighAccuracy: true }
       );
@@ -163,11 +148,9 @@ export const MapsNavigationModule: React.FC = () => {
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // 1. Matar las líneas viejas físicamente (sin depender de React)
     if (activePolylineRef.current) activePolylineRef.current.setMap(null);
     if (futurePolylineRef.current) futurePolylineRef.current.setMap(null);
 
-    // 2. Si hay ruta nueva, dibujar líneas nuevas
     if (activePath.length > 0) {
       activePolylineRef.current = new google.maps.Polyline({
         path: activePath,
@@ -192,16 +175,15 @@ export const MapsNavigationModule: React.FC = () => {
       futurePolylineRef.current.setMap(mapRef.current);
     }
 
-    // 3. Limpieza de seguridad al desmontar el efecto
     return () => {
       if (activePolylineRef.current) activePolylineRef.current.setMap(null);
       if (futurePolylineRef.current) futurePolylineRef.current.setMap(null);
     };
-  }, [activePath, futurePath]); // Solo se ejecuta cuando cambian los caminos
+  }, [activePath, futurePath]);
 
 
   const displayStops = useMemo(() => {
-    const s = route?.stops || backupOrders;
+    const s = route?.stops || backupOrders || [];
     return s.map((o: any) => ({
       ...o,
       lat: Number(o.lat || o.latitude || o.location?.lat),
@@ -226,36 +208,20 @@ export const MapsNavigationModule: React.FC = () => {
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={driverPos || { lat: 1.2136, lng: -77.2811 }}
-        zoom={isFollowing ? 18 : 16}
+        zoom={16}
         onLoad={m => { mapRef.current = m; }}
         onDragStart={() => setIsFollowing(false)}
-        options={{ 
-          disableDefaultUI: true, 
-          styles: mapStyles,
-          tilt: isFollowing ? 60 : 0
-        }}
+        options={{ disableDefaultUI: true, styles: mapStyles }}
       >
-        {/* POLILÍNEAS MANUALES CONTROLADAS POR REF (Ver useEffect abajo) */}
-
-        {displayStops.map((stop: any, idx: number) => {
-          const isCompleted = ['DELIVERED', 'RETURNED', 'CANCELLED'].includes(stop.status);
-          return (
-            <MarkerF
-              key={`${stop.id || idx}-v${routeVersion}`}
-              position={{ lat: stop.lat, lng: stop.lng }}
-              onClick={() => setSelectedOrder(stop)}
-              label={{ text: (idx + 1).toString(), color: 'white', fontWeight: '900', fontSize: '11px' }}
-              icon={{ 
-                path: google.maps.SymbolPath.CIRCLE, 
-                fillColor: isCompleted ? '#94a3b8' : (idx === 0 ? '#fbbf24' : '#f43f5e'), 
-                fillOpacity: isCompleted ? 0.8 : 1, 
-                strokeColor: '#fff', 
-                strokeWeight: 2, 
-                scale: isCompleted ? 6 : 8 
-              }}
-            />
-          );
-        })}
+        {displayStops.map((stop: any, idx: number) => (
+          <MarkerF
+            key={`${stop.id || idx}-v${routeVersion}`}
+            position={{ lat: stop.lat, lng: stop.lng }}
+            onClick={() => setSelectedOrder(stop)}
+            label={{ text: (idx + 1).toString(), color: 'white', fontWeight: '900', fontSize: '11px' }}
+            icon={{ path: google.maps.SymbolPath.CIRCLE, fillColor: idx === 0 ? '#fbbf24' : '#f43f5e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 8 }}
+          />
+        ))}
 
         {selectedOrder && (
           <InfoWindowF position={{ lat: selectedOrder.lat, lng: selectedOrder.lng }} onCloseClick={() => setSelectedOrder(null)}>
@@ -264,10 +230,10 @@ export const MapsNavigationModule: React.FC = () => {
                 <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${selectedOrder.priority === 'HIGH' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
                     {selectedOrder.priority === 'HIGH' ? 'Prioridad Alta' : 'Estándar'}
                 </div>
-                <span className="text-[10px] font-bold text-slate-400">#{selectedOrder.id.toString().slice(-4)}</span>
+                <span className="text-[10px] font-bold text-slate-400">#{selectedOrder.id?.toString().slice(-4)}</span>
               </div>
               <div className="space-y-3">
-                <div className="flex items-start gap-3"><User className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Cliente</p><p className="text-sm font-black text-slate-900">{selectedOrder.clientName || selectedOrder.client_name || 'Cliente VibeRoute'}</p></div></div>
+                <div className="flex items-start gap-3"><User className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Cliente</p><p className="text-sm font-black text-slate-900">{(selectedOrder.clientName && selectedOrder.clientName !== 'Cliente VibeRoute' && selectedOrder.clientName !== 'Cliente Viberoute') ? selectedOrder.clientName : (selectedOrder.clientReference || 'Sin nombre')}</p>{selectedOrder.clientReference && selectedOrder.clientName && selectedOrder.clientName !== 'Cliente VibeRoute' && selectedOrder.clientName !== 'Cliente Viberoute' && <p className="text-[10px] text-slate-400 font-semibold">Ref: {selectedOrder.clientReference}</p>}</div></div>
                 <div className="flex items-start gap-3"><MapPin className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Entrega en</p><p className="text-[11px] font-bold text-slate-600 leading-tight">{selectedOrder.address}</p></div></div>
                 <div className="flex items-start gap-3"><Phone className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Contacto</p><a href={`tel:${selectedOrder.phone || '3000000000'}`} className="text-[11px] font-black text-emerald-600 underline decoration-emerald-200">{selectedOrder.phone || 'Llamar al cliente'}</a></div></div>
               </div>
@@ -312,14 +278,16 @@ export const MapsNavigationModule: React.FC = () => {
             <div className="flex items-center gap-3">
               <div className="bg-emerald-500/10 p-3 rounded-2xl text-emerald-600"><Box className="w-6 h-6" /></div>
               <div>
-                <p className="text-sm font-black text-slate-900 leading-none">Lote #{currentBatchId}</p>
+                <p className="text-sm font-black text-slate-900 leading-none">Lote #{currentBatchId || 'Asignado'}</p>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{displayStops.length} Envíos activos</p>
               </div>
             </div>
-            <div className="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200">
-              <button onClick={() => { setOptMode('EFFICIENCY'); }} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${optMode === 'EFFICIENCY' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>Eficiencia</button>
-              <button onClick={() => { setOptMode('PRIORITY'); }} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${optMode === 'PRIORITY' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>Prioridad</button>
-            </div>
+            {currentBatchId && (
+              <div className="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200">
+                <button onClick={() => { setOptMode('EFFICIENCY'); }} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${optMode === 'EFFICIENCY' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>Eficiencia</button>
+                <button onClick={() => { setOptMode('PRIORITY'); }} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${optMode === 'PRIORITY' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>Prioridad</button>
+              </div>
+            )}
           </div>
           {optimizing && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center gap-2 py-1">

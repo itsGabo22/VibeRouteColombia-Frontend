@@ -59,22 +59,15 @@ export const OrdersManagementModule: React.FC<{
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const { data: batches } = await api.get('/batches');
+      const { data: allOrdersFromApi } = await api.get('/orders');
       
-      let allOrders: Order[] = [];
+      let allOrders: Order[] = allOrdersFromApi.map((o: any) => ({
+        ...o,
+        driverName: o.driverName || 'Sin Asignar'
+      }));
 
       if (driverName) {
-        const myBatch = batches.find((b: any) => 
-          b.driver && b.driver.name?.toLowerCase() === driverName?.toLowerCase() && b.status !== 'COMPLETED'
-        );
-        allOrders = myBatch?.orders?.map((o: any) => ({ ...o, driverName: myBatch.driver.name })) || [];
-      } else {
-        batches.forEach((b: any) => {
-          if (b.orders) {
-             const mapped = b.orders.map((o: any) => ({ ...o, driverName: b.driver?.name || 'Sin Asignar' }));
-             allOrders.push(...mapped);
-          }
-        });
+        allOrders = allOrders.filter(o => o.driverName?.toLowerCase() === driverName?.toLowerCase());
       }
       
       if (forceCity) {
