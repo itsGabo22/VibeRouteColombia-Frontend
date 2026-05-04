@@ -94,7 +94,7 @@ export const LiveEventsWall: React.FC = () => {
 
   const { connect, disconnect } = useWebSocket({
     url:       WS_URL,
-    topic:     '/topic/logistica',
+    topic:     '/topic/logistics',
     onMessage: handleMessage,
     onConnect: () => setConnected(true),
     onDisconnect: () => setConnected(false),
@@ -174,7 +174,7 @@ export const LiveEventsWall: React.FC = () => {
                 Esperando eventos del servidor
               </p>
               <p className="text-slate-300 text-xs font-medium max-w-xs">
-                Cuando el backend publique en <code className="bg-slate-100 px-1 rounded text-slate-500">/topic/logistica</code>, aparecerán aquí al instante.
+                Cuando el backend publique en <code className="bg-slate-100 px-1 rounded text-slate-500">/topic/logistics</code>, aparecerán aquí al instante.
               </p>
             </motion.div>
           ) : (

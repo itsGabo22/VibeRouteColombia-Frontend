@@ -14,6 +14,7 @@ import {
 import { motion } from 'framer-motion';
 import api from '../../shared/lib/api';
 import { useAuthStore } from '../../app/store/authStore';
+import { FleetMonitorModule } from '../dispatch/FleetMonitorModule';
 
 interface MetricCardProps {
   title: string;
@@ -163,11 +164,15 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
            </div>
            
            <div className="h-64 flex items-end gap-2 px-2 relative">
-              {stats?.monthlyRevenue ? (
-                ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => {
-                  const val = Number(stats.monthlyRevenue[m]) || 0;
-                  // Calculate height relative to max value or fixed scale (e.g. 100K)
-                  const height = Math.min(100, (val / 100000) * 100); 
+              {stats?.monthlyRevenue && Object.keys(stats.monthlyRevenue).length > 0 ? (
+                ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((_, i) => {
+                  const enMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                  const esMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                  const val = Number(stats.monthlyRevenue[enMonths[i]]) || Number(stats.monthlyRevenue[esMonths[i]]) || 0;
+                  
+                  // Encontrar el valor máximo para que la gráfica sea dinámica
+                  const maxVal = Math.max(...Object.values(stats.monthlyRevenue).map(v => Number(v) || 0), 10000);
+                  const height = Math.min(100, (val / maxVal) * 100); 
                   
                   return (
                     <div key={i} className="flex-1 bg-slate-50 rounded-t-lg relative group h-full flex items-end">
@@ -177,7 +182,7 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
                          transition={{ delay: i * 0.05, duration: 1 }}
                          className="w-full bg-teal-500/20 group-hover:bg-teal-500 transition-all rounded-t-lg relative"
                        >
-                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10">
                             ${(val / 1000).toFixed(1)}K
                          </div>
                        </motion.div>
@@ -221,7 +226,7 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                       <motion.div initial={{ width: 0 }} animate={{ width: `${driver.effectivenessPercentage}%` }} className={`h-full bg-teal-500`} />
                    </div>
-                   <span className="w-12 text-[10px] font-bold text-slate-400 text-right">{driver.effectivenessPercentage}%</span>
+                   <span className="w-12 text-[10px] font-bold text-slate-400 text-right">{Number(driver.effectivenessPercentage).toFixed(1)}%</span>
                    <span className="w-20 text-[10px] font-black text-slate-900 text-right">${driver.successfulDeliveries * 15}K <span className="text-emerald-500">↑</span></span>
                 </div>
               ))}
@@ -232,6 +237,10 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
         </div>
       </div>
 
+      {/* SECCIÓN DE SUPERVISIÓN DE FLOTA REAL-TIME */}
+      <div className="border-t border-slate-100 pt-10 mt-10">
+         <FleetMonitorModule />
+      </div>
     </div>
   );
 };

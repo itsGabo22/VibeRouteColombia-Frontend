@@ -30,6 +30,15 @@ export const GeminiInsightModule: React.FC<GeminiInsightProps> = ({ stats }) => 
   const efficiencyScore = total > 0 ? Math.round((stats.delivered / total) * 100) : 0;
 
   const generateInsight = async () => {
+    if (stats.pending > 0 || stats.delivered === 0) return;
+
+    const cacheKey = `gemini_insight_${stats.delivered}_${stats.cancelled}_${stats.returned}_${stats.hours}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      setInsight(cached);
+      return;
+    }
+
     setLoading(true);
     try {
       const { data } = await api.post('/ai/daily-summary', {
@@ -42,6 +51,7 @@ export const GeminiInsightModule: React.FC<GeminiInsightProps> = ({ stats }) => 
         efficiencyScore: efficiencyScore
       });
       setInsight(data.summary);
+      sessionStorage.setItem(cacheKey, data.summary);
     } catch (err) {
       setInsight("En este momento la IA está recalculando rutas globales. Por favor, intenta en unos minutos.");
     } finally {
@@ -50,10 +60,10 @@ export const GeminiInsightModule: React.FC<GeminiInsightProps> = ({ stats }) => 
   };
 
   useEffect(() => {
-    if (total > 0) {
+    if (stats.pending === 0 && stats.delivered > 0) {
       generateInsight();
     }
-  }, [stats]);
+  }, [stats.delivered, stats.cancelled, stats.returned, stats.pending, stats.hours]);
 
   return (
     <motion.div 

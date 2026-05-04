@@ -8,8 +8,9 @@ interface DestructiveActionModalProps {
   onConfirm: () => void;
   title: string;
   description: string;
-  confirmText: string; // La palabra que el usuario debe escribir (ej: "BORRAR")
-  itemName: string;    // El nombre del item a borrar (ej: "Admin Pedro")
+  confirmText: string;
+  itemName?: string;
+  isLoading?: boolean;
 }
 
 export const DestructiveActionModal: React.FC<DestructiveActionModalProps> = ({
@@ -19,7 +20,8 @@ export const DestructiveActionModal: React.FC<DestructiveActionModalProps> = ({
   title,
   description,
   confirmText,
-  itemName
+  itemName,
+  isLoading = false
 }) => {
   const [inputValue, setInputValue] = useState('');
 
@@ -49,11 +51,13 @@ export const DestructiveActionModal: React.FC<DestructiveActionModalProps> = ({
               <p className="text-slate-400 text-sm leading-relaxed">{description}</p>
             </div>
 
-            <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-2xl">
-              <p className="text-xs font-bold text-rose-400/80 leading-relaxed italic">
-                Estás a punto de eliminar permanentemente a: <span className="text-rose-400 underline">{itemName}</span>
-              </p>
-            </div>
+            {itemName && (
+              <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-2xl">
+                <p className="text-xs font-bold text-rose-400/80 leading-relaxed italic">
+                  Estás a punto de eliminar permanentemente a: <span className="text-rose-400 underline">{itemName}</span>
+                </p>
+              </div>
+            )}
 
             <div className="space-y-4">
               <div className="space-y-2">
@@ -71,14 +75,21 @@ export const DestructiveActionModal: React.FC<DestructiveActionModalProps> = ({
               </div>
 
               <button
-                disabled={inputValue.toUpperCase() !== confirmText.toUpperCase()}
+                disabled={isLoading || inputValue.toUpperCase() !== confirmText.toUpperCase()}
                 onClick={() => {
                   onConfirm();
                   setInputValue('');
                 }}
-                className="w-full bg-rose-600 hover:bg-rose-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-rose-900/20 active:scale-[0.98] uppercase text-xs tracking-widest"
+                className="w-full bg-rose-600 hover:bg-rose-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-rose-900/20 active:scale-[0.98] uppercase text-xs tracking-widest flex items-center justify-center gap-2"
               >
-                Confirmar Eliminación Crítica
+                {isLoading ? (
+                  <>
+                    <X size={16} className="animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  'Confirmar Eliminación Crítica'
+                )}
               </button>
             </div>
           </div>

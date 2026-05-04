@@ -59,9 +59,7 @@ export const DocumentHubModule: React.FC<{ mode: 'admin' | 'logistica' }> = ({ m
     formData.append('type', 'MANIFIESTO_PDF');
 
     try {
-      await api.post('/reports/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await api.post('/reports/upload', formData);
       setStatus('success');
       fetchDocs();
       setTimeout(() => setStatus('idle'), 3000);
@@ -92,9 +90,7 @@ export const DocumentHubModule: React.FC<{ mode: 'admin' | 'logistica' }> = ({ m
       formData.append('sender', 'Sistema Automático');
       formData.append('type', 'CIERRE_OPERATIVO');
 
-      await api.post('/reports/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await api.post('/reports/upload', formData);
       
       setStatus('success');
       fetchDocs();
@@ -104,6 +100,36 @@ export const DocumentHubModule: React.FC<{ mode: 'admin' | 'logistica' }> = ({ m
       alert("Error al generar y enviar el reporte automático.");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDownloadWord = async () => {
+    setLoading(true);
+    try {
+      // Pasamos la ciudad del usuario para que el reporte de IA sea específico de su zona
+      const city = user?.assignedCity || '';
+      const endpoint = mode === 'admin' 
+        ? '/reports/generate-general-word' 
+        : `/reports/generate-general-word?city=${encodeURIComponent(city)}`;
+      
+      const response = await api.get(endpoint, { responseType: 'blob' });
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const fileName = mode === 'admin' ? 'Reporte_Estrategico_Global.docx' : `Resumen_Semanal_${city}.docx`;
+      link.setAttribute('download', fileName);
+      
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Error descargando reporte:", err);
+      alert("Error al generar el archivo Word.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -122,9 +148,17 @@ export const DocumentHubModule: React.FC<{ mode: 'admin' | 'logistica' }> = ({ m
         {mode === 'logistica' ? (
            <div className="flex gap-4">
               <label className="flex items-center gap-3 px-6 py-4 bg-white text-slate-700 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-50 transition-all shadow-sm">
-                 <UploadCloud size={18} /> Subir Reporte
+                 <UploadCloud size={18} /> Subir Manifiesto
                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleUpload} disabled={uploading} />
               </label>
+              <button 
+                 onClick={handleDownloadWord}
+                 disabled={loading}
+                 className="flex items-center gap-3 px-6 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 active:scale-95"
+              >
+                 {loading ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
+                 Reporte Regional Word
+              </button>
            </div>
         ) : (
            <div className="flex gap-4">
@@ -134,7 +168,15 @@ export const DocumentHubModule: React.FC<{ mode: 'admin' | 'logistica' }> = ({ m
                  className="flex items-center gap-3 px-6 py-4 bg-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-teal-700 transition-all shadow-xl shadow-teal-100 disabled:opacity-50 active:scale-95"
               >
                  {uploading ? <Loader2 size={18} className="animate-spin" /> : <BarChart4 size={18} />}
-                 {uploading ? 'Procesando...' : 'Generar Cierre Global'}
+                 {uploading ? 'Procesando...' : 'Cierre Operativo PDF'}
+              </button>
+              <button 
+                 onClick={handleDownloadWord}
+                 disabled={loading}
+                 className="flex items-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-800 transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 active:scale-95"
+              >
+                 {loading ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} className="text-indigo-400" />}
+                 Reporte Gerencial IA
               </button>
            </div>
         )}

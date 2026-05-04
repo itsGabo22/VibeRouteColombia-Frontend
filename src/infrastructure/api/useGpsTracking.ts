@@ -36,7 +36,7 @@ interface GpsState {
  * with { driverId, lat, lng }.
  *
  * The backend pipes that into ProximityAlertService which can
- * trigger WebSocket alerts on /topic/logistica.
+ * trigger WebSocket alerts on /topic/logistics.
  */
 export function useGpsTracking({
   driverId,

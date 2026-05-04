@@ -146,7 +146,12 @@ export const MapsNavigationModule: React.FC = () => {
         (p) => {
           const np = { lat: p.coords.latitude, lng: p.coords.longitude };
           setDriverPos(np);
-          if (isFollowing && mapRef.current) mapRef.current.panTo(np);
+          if (isFollowing && mapRef.current) {
+             mapRef.current.panTo(np);
+             if (p.coords.heading != null && !Number.isNaN(p.coords.heading)) {
+                 mapRef.current.setHeading(p.coords.heading);
+             }
+          }
         },
         null, { enableHighAccuracy: true }
       );
@@ -221,10 +226,14 @@ export const MapsNavigationModule: React.FC = () => {
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={driverPos || { lat: 1.2136, lng: -77.2811 }}
-        zoom={16}
+        zoom={isFollowing ? 18 : 16}
         onLoad={m => { mapRef.current = m; }}
         onDragStart={() => setIsFollowing(false)}
-        options={{ disableDefaultUI: true, styles: mapStyles }}
+        options={{ 
+          disableDefaultUI: true, 
+          styles: mapStyles,
+          tilt: isFollowing ? 60 : 0
+        }}
       >
         {/* POLILÍNEAS MANUALES CONTROLADAS POR REF (Ver useEffect abajo) */}
 

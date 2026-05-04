@@ -28,7 +28,8 @@ interface Driver {
   status: string;
 }
 
-import { FleetMonitorModule } from './FleetMonitorModule';
+import { SmartDispatchModal } from './SmartDispatchModal';
+import { useWebSocket } from '../../infrastructure/websocket/useWebSocket';
 
 export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: string }> = ({ city, searchQuery = '' }) => {
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -59,6 +60,17 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
     fetchData();
   }, [city]);
 
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+  const WS_URL = `${apiBase.replace('/api/v1', '')}/ws-alertas`;
+
+  useWebSocket({
+    url: WS_URL,
+    topic: '/topic/logistics',
+    onMessage: () => {
+       fetchData();
+    }
+  });
+
   const handleAssign = async (driverId: number) => {
     if (!selectedBatch) return;
     setAssigning(true);
@@ -73,8 +85,20 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
     }
   };
 
-  const generatePDF = (batchId: number) => {
-    alert(`Generando Manifiesto PDF para Lote #${batchId}... En una app real, esto descargaría un archivo generado por iText en el Backend.`);
+  const generatePDF = async () => {
+    try {
+      const response = await api.get(`/reports/generate-global`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'Cierre_Global_VibeRoute.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Error descargando reporte global:", err);
+      alert("Error al descargar la planilla semanal.");
+    }
   };
 
   return (
@@ -192,7 +216,7 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
                       </div>
                    </div>
                  ))}
-                 <button onClick={() => generatePDF(0)} className="w-full flex items-center justify-between p-5 bg-teal-50 text-teal-600 rounded-3xl group hover:bg-teal-600 hover:text-white transition-all shadow-xl mt-6">
+                 <button onClick={() => generatePDF()} className="w-full flex items-center justify-between p-5 bg-teal-50 text-teal-600 rounded-3xl group hover:bg-teal-600 hover:text-white transition-all shadow-xl mt-6">
                     <div className="flex items-center gap-4 text-left">
                        <FileDown size={20} />
                        <div>
@@ -206,10 +230,6 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
         </div>
       </div>
 
-      {/* SECCIÓN DE SUPERVISIÓN DE FLOTA REAL-TIME */}
-      <div className="border-t border-slate-100 pt-10">
-        <FleetMonitorModule />
-      </div>
     </div>
   );
 };

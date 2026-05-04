@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Map, 
-  Settings, 
   LogOut,
   Bell,
   Search,
@@ -46,19 +45,18 @@ export const AdminDashboardPage: React.FC = () => {
   const isAdmin = user?.role === 'ADMIN';
 
   const navItems = [
-    { id: 'dashboard', label: isAdmin ? 'Monitor Global' : 'Monitor de Ciudad', icon: LayoutDashboard },
-    ...(isAdmin ? [
-      { id: 'import', label: 'Carga Masiva (JSON)', icon: Database },
-      { id: 'reports', label: 'Cierres de Caja', icon: FileText },
-    ] : []),
+    { id: 'dashboard', label: 'Monitor de Flota', icon: LayoutDashboard },
     ...(isLogistica ? [
-      { id: 'batchConsolidation', label: 'Consolidar Lotes', icon: Plus },
-      { id: 'dispatch', label: 'Monitor de Despacho', icon: Package },
       { id: 'orders', label: 'Ver Pedidos', icon: Database },
-      { id: 'reports', label: 'Subir Reporte', icon: FileText },
+      { id: 'batchConsolidation', label: 'Consolidar Lotes', icon: Plus },
+      { id: 'dispatch', label: 'Despacho de Lotes', icon: Package },
     ] : []),
-    { id: 'live', label: 'Eventos en Vivo', icon: Bell },
-    { id: 'users', label: 'Gestión de Personal', icon: Users },
+    ...(isAdmin ? [
+      { id: 'import', label: 'Carga Masiva', icon: Database },
+      { id: 'users', label: 'Gestión Personal', icon: Users },
+    ] : []),
+    { id: 'reports', label: 'Reportes y Cierres', icon: FileText },
+    { id: 'live', label: 'Eventos Real-Time', icon: Bell },
   ];
 
   // Set default tab based on role if current is not available
@@ -145,9 +143,7 @@ export const AdminDashboardPage: React.FC = () => {
                   className="bg-transparent border-none outline-none text-xs font-bold w-48" 
                  />
               </div>
-              <button className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-teal-600 transition-all shadow-sm">
-                 <Settings size={20} />
-              </button>
+
            </div>
         </header>
 

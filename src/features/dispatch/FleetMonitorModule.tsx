@@ -41,7 +41,7 @@ export const FleetMonitorModule: React.FC = () => {
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 30000);
+    const interval = setInterval(fetchStatus, 15000); // 15s es el balance óptimo
     return () => clearInterval(interval);
   }, []);
 

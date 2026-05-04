@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Filter, MapPin, Phone, User, Package, Clock, 
   CheckCircle2, XCircle, ChevronRight, Navigation, Loader2,
-  Calendar, Info, AlertTriangle, TrendingUp, X
+  Calendar, Info, AlertTriangle, TrendingUp, X, Trash2, FileText, ChevronLeft, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
+import { DestructiveActionModal } from '../../ui/components/DestructiveActionModal';
 
 interface Order {
   id: number;
@@ -17,6 +18,7 @@ interface Order {
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   createdAt?: string;
   nonDeliveryReason?: string;
+  driverName?: string;
 }
 
 export const OrdersManagementModule: React.FC<{ 
@@ -29,8 +31,20 @@ export const OrdersManagementModule: React.FC<{
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [driverFilter, setDriverFilter] = useState<string>('ALL');
+  const [availableDrivers, setAvailableDrivers] = useState<string[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Selection & Pagination
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 5;
+
+  // Modals
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   // Novedad states
   const [isNovedadOpen, setIsNovedadOpen] = useState(false);
@@ -53,10 +67,13 @@ export const OrdersManagementModule: React.FC<{
         const myBatch = batches.find((b: any) => 
           b.driver && b.driver.name?.toLowerCase() === driverName?.toLowerCase() && b.status !== 'COMPLETED'
         );
-        allOrders = myBatch?.orders || [];
+        allOrders = myBatch?.orders?.map((o: any) => ({ ...o, driverName: myBatch.driver.name })) || [];
       } else {
         batches.forEach((b: any) => {
-          if (b.orders) allOrders.push(...b.orders);
+          if (b.orders) {
+             const mapped = b.orders.map((o: any) => ({ ...o, driverName: b.driver?.name || 'Sin Asignar' }));
+             allOrders.push(...mapped);
+          }
         });
       }
       
@@ -65,6 +82,11 @@ export const OrdersManagementModule: React.FC<{
       }
 
       setOrders(allOrders);
+      
+      if (!driverName) {
+         const drivers = Array.from(new Set(allOrders.map(o => o.driverName))).filter(Boolean) as string[];
+         setAvailableDrivers(drivers.sort());
+      }
     } catch (err) {
       console.error("Error fetching orders:", err);
     } finally {
@@ -102,6 +124,92 @@ export const OrdersManagementModule: React.FC<{
     }
   };
 
+  const handleDeleteOrder = async (orderId: number) => {
+    try {
+      setIsUpdating(true);
+      await api.delete(`/orders/${orderId}`);
+      setOrders((prev: Order[]) => prev.filter(o => o.id !== orderId));
+      setSelectedIds(prev => prev.filter(id => id !== orderId));
+      setSelectedOrder(null);
+      setShowDeleteModal(false);
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error("Error al eliminar pedido:", err);
+      alert("No se pudo eliminar el pedido. Podría estar asignado a un proceso crítico.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente ${selectedIds.length} pedidos?`)) return;
+    
+    try {
+      setIsUpdating(true);
+      for (const id of selectedIds) {
+        await api.delete(`/orders/${id}`);
+      }
+      setOrders(prev => prev.filter(o => !selectedIds.includes(o.id)));
+      setSelectedIds([]);
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error("Error en eliminación masiva:", err);
+      alert("Algunos pedidos no pudieron ser eliminados.");
+      fetchOrders();
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDownloadRegionalReport = async () => {
+    // Si forceCity existe, lo usamos. Si no, preguntamos si quiere el global.
+    const activeCity = forceCity || '';
+    if (!activeCity && !window.confirm("¿Deseas generar el reporte de todas las zonas?")) return;
+    
+    try {
+      setIsDownloading(true);
+      // Evitamos el cache del navegador añadiendo un timestamp y limpiando el nombre
+      const cleanCity = (activeCity || '').trim();
+      const cityQuery = cleanCity ? `city=${encodeURIComponent(cleanCity)}` : '';
+      const url = `/reports/generate-excel?t=${new Date().getTime()}${cityQuery ? '&' + cityQuery : ''}`;
+      
+      const response = await api.get(url, { responseType: 'blob' });
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      
+      // Aseguramos que el nombre del archivo refleje la ciudad REAL
+      const fileName = cleanCity ? `Lista_Pedidos_${cleanCity}.xlsx` : 'Reporte_Pedidos.xlsx';
+      link.setAttribute('download', fileName);
+      
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error("Error downloading regional report:", err);
+      alert("No se pudo generar el reporte regional en Excel.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredOrders.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredOrders.map(o => o.id));
+    }
+  };
+
+  const toggleSelectOrder = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
   const statusMap: any = {
     'PENDING': { label: 'PENDIENTE', color: 'bg-slate-100 text-slate-600', icon: Clock },
     'ON_ROUTE': { label: 'EN RUTA', color: 'bg-blue-50 text-blue-600', icon: Navigation },
@@ -123,28 +231,71 @@ export const OrdersManagementModule: React.FC<{
       (order.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesFilter = filterStatus === 'ALL' || order.status === filterStatus;
-    return matchesSearch && matchesFilter;
+    const matchesDriver = driverFilter === 'ALL' || order.driverName === driverFilter;
+    
+    return matchesSearch && matchesFilter && matchesDriver;
   });
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-green-500 transition-colors" size={18} />
-          <input 
-            type="text"
-            placeholder="Buscar por referencia, cliente o dirección..."
-            className="w-full pl-12 pr-6 py-4 bg-white border border-slate-100 rounded-3xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-green-500/5 focus:border-green-500/20 transition-all shadow-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
+        <div className="flex w-full xl:w-auto gap-4 flex-col md:flex-row">
+           <div className="relative w-full md:w-80 group">
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-green-500 transition-colors" size={18} />
+             <input 
+               type="text"
+               placeholder="Buscar referencia o cliente..."
+               className="w-full pl-12 pr-6 py-4 bg-white border border-slate-100 rounded-3xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-green-500/5 focus:border-green-500/20 transition-all shadow-sm"
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+             />
+           </div>
+           
+           {!driverName && availableDrivers.length > 0 && (
+             <div className="relative w-full md:w-64">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <select
+                  value={driverFilter}
+                  onChange={(e) => setDriverFilter(e.target.value)}
+                  className="w-full pl-12 pr-6 py-4 bg-white border border-slate-100 rounded-3xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-green-500/5 focus:border-green-500/20 appearance-none shadow-sm cursor-pointer"
+                >
+                   <option value="ALL">Todos los repartidores</option>
+                   {availableDrivers.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+             </div>
+           )}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-hide items-center">
+          {/* Regional Report Button */}
+          {!driverName && (
+            <button 
+               onClick={handleDownloadRegionalReport}
+               disabled={isDownloading}
+               className="px-8 py-4 bg-emerald-600 text-white rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200/50 flex items-center gap-3 disabled:opacity-50"
+            >
+               {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}
+               Exportar Excel Regional
+            </button>
+          )}
+
+          {/* Bulk Delete Button */}
+          {!driverName && selectedIds.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-100 animate-in fade-in zoom-in duration-300"
+            >
+              <Trash2 size={14} />
+              Borrar {selectedIds.length}
+            </button>
+          )}
+
+          <div className="h-10 w-px bg-slate-100 mx-2 hidden md:block" />
+
           {['ALL', 'PENDING', 'ON_ROUTE', 'DELIVERED'].map((s) => (
             <button
               key={s}
-              onClick={() => setFilterStatus(s)}
+              onClick={() => { setFilterStatus(s); setCurrentPage(1); }}
               className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                 filterStatus === s 
                   ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' 
@@ -162,8 +313,21 @@ export const OrdersManagementModule: React.FC<{
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
+                {!driverName && (
+                  <th className="pl-8 py-6 w-10">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                      checked={selectedIds.length === filteredOrders.length && filteredOrders.length > 0}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                )}
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pedido</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destino Operativo</th>
+                {!driverName && (
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Conductor</th>
+                )}
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Prioridad</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado</th>
                 <th className="px-8 py-6"></th>
@@ -171,14 +335,16 @@ export const OrdersManagementModule: React.FC<{
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
-                <tr><td colSpan={5} className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Cargando operaciones...</td></tr>
+                <tr><td colSpan={driverName ? 5 : 7} className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Cargando operaciones...</td></tr>
               ) : filteredOrders.length === 0 ? (
-                <tr><td colSpan={5} className="p-32 text-center">
+                <tr><td colSpan={driverName ? 5 : 7} className="p-32 text-center">
                   <Package className="mx-auto text-slate-200 mb-2" size={48} />
                   <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sin registros encontrados</p>
                 </td></tr>
               ) : (
-                filteredOrders.map((order) => (
+                filteredOrders
+                  .slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage)
+                  .map((order) => (
                   <motion.tr 
                     layout
                     initial={{ opacity: 0 }}
@@ -187,6 +353,16 @@ export const OrdersManagementModule: React.FC<{
                     className="hover:bg-slate-50/50 transition-all cursor-pointer group"
                     onClick={() => setSelectedOrder(order)}
                   >
+                    {!driverName && (
+                      <td className="pl-8 py-6" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                          checked={selectedIds.includes(order.id)}
+                          onChange={(e) => toggleSelectOrder(e as any, order.id)}
+                        />
+                      </td>
+                    )}
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center font-black text-xs shadow-sm shadow-green-100 group-hover:scale-110 transition-transform">
@@ -207,6 +383,14 @@ export const OrdersManagementModule: React.FC<{
                           </div>
                        </div>
                     </td>
+                    {!driverName && (
+                      <td className="px-8 py-6">
+                         <div className="flex items-center gap-2">
+                            <User size={12} className="text-slate-300" />
+                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{order.driverName}</span>
+                         </div>
+                      </td>
+                    )}
                     <td className="px-8 py-6">
                        <div className="flex justify-center">
                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${priorityMap[order.priority]?.color || 'bg-slate-100 text-slate-400'}`}>
@@ -233,6 +417,34 @@ export const OrdersManagementModule: React.FC<{
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {!loading && filteredOrders.length > ordersPerPage && (
+          <div className="px-8 py-4 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Mostrando {Math.min(filteredOrders.length, currentPage * ordersPerPage)} de {filteredOrders.length}
+            </p>
+            <div className="flex gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="p-2 rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-slate-900 disabled:opacity-30 transition-all shadow-sm"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div className="flex items-center px-4 bg-white border border-slate-100 rounded-xl text-[10px] font-black text-slate-600">
+                {currentPage} / {Math.ceil(filteredOrders.length / ordersPerPage)}
+              </div>
+              <button
+                disabled={currentPage >= Math.ceil(filteredOrders.length / ordersPerPage)}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="p-2 rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-slate-900 disabled:opacity-30 transition-all shadow-sm"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
@@ -356,6 +568,19 @@ export const OrdersManagementModule: React.FC<{
                   </div>
                 )}
 
+                {!driverName && (
+                  <div className="pt-2">
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => { setOrderToDelete(selectedOrder.id); setShowDeleteModal(true); }}
+                      className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-100 transition-all active:scale-95 disabled:opacity-50 border border-red-100"
+                    >
+                      {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                      Eliminar Pedido Fantasma
+                    </button>
+                  </div>
+                )}
+
                 {/* Already completed status banner */}
                 {driverName && ['DELIVERED', 'CANCELLED', 'RETURNED'].includes(selectedOrder.status) && (
                   <div className={`p-4 rounded-2xl text-center text-xs font-black uppercase tracking-widest ${
@@ -446,6 +671,17 @@ export const OrdersManagementModule: React.FC<{
           </div>
         )}
       </AnimatePresence>
+
+      <DestructiveActionModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={() => orderToDelete && handleDeleteOrder(orderToDelete)}
+        title="ELIMINAR PEDIDO CRÍTICO"
+        description="Esta acción eliminará permanentemente el registro de este pedido 'fantasma'. Asegúrate de que no esté asignado a ningún proceso activo antes de continuar."
+        confirmText="ELIMINAR DEFINITIVAMENTE"
+        itemName={selectedOrder?.clientReference || `Pedido #${orderToDelete}`}
+        isLoading={isUpdating}
+      />
     </div>
   );
 };

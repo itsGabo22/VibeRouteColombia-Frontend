@@ -13,7 +13,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
 import { SmartDispatchModal } from './SmartDispatchModal';
-import { FleetMonitorModule } from './FleetMonitorModule';
+import { useWebSocket } from '../../infrastructure/websocket/useWebSocket';
 
 interface Order {
   id: number;
@@ -48,6 +48,17 @@ export const BatchConsolidationModule: React.FC<{ city?: string; searchQuery?: s
   useEffect(() => {
     fetchPendingOrders();
   }, [city]);
+
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+  const WS_URL = `${apiBase.replace('/api/v1', '')}/ws-alertas`;
+
+  useWebSocket({
+    url: WS_URL,
+    topic: '/topic/logistics',
+    onMessage: () => {
+       fetchPendingOrders();
+    }
+  });
 
   const displayOrders = orders.filter(o => 
     o.clientReference?.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -190,10 +201,6 @@ export const BatchConsolidationModule: React.FC<{ city?: string; searchQuery?: s
          )}
       </div>
 
-      {/* SECCIÓN DE SUPERVISIÓN DE FLOTA REAL-TIME */}
-      <div className="border-t border-slate-100 pt-10 mt-10">
-        <FleetMonitorModule />
-      </div>
     </div>
   );
 };
