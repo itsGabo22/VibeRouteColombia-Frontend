@@ -129,6 +129,13 @@ export const MapsNavigationModule: React.FC = () => {
     }
   }, [optMode, currentBatchId, !!driverPos, isLoaded]);
 
+  // SEGUIMIENTO DINÁMICO
+  useEffect(() => {
+    if (isFollowing && mapRef.current && driverPos) {
+      mapRef.current.panTo(driverPos);
+    }
+  }, [driverPos, isFollowing]);
+
   // Watch Position
   useEffect(() => {
     if (navigator.geolocation) {
@@ -136,13 +143,12 @@ export const MapsNavigationModule: React.FC = () => {
         (p) => {
           const np = { lat: p.coords.latitude, lng: p.coords.longitude };
           setDriverPos(np);
-          if (isFollowing && mapRef.current) mapRef.current.panTo(np);
         },
         null, { enableHighAccuracy: true }
       );
       return () => navigator.geolocation.clearWatch(wId);
     }
-  }, [setDriverPos, isFollowing]);
+  }, [setDriverPos]);
 
   // LA CURA DEFINITIVA PARA LA SOBREPOSICIÓN: Gestión Manual de Polilíneas
   useEffect(() => {
@@ -157,7 +163,8 @@ export const MapsNavigationModule: React.FC = () => {
         strokeColor: '#10b981',
         strokeWeight: 8,
         strokeOpacity: 1,
-        zIndex: 100,
+        zIndex: 10,
+        clickable: false,
         icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, fillColor: '#fff', fillOpacity: 1, strokeColor: '#10b981' }, offset: '0', repeat: '80px' }]
       });
       activePolylineRef.current.setMap(mapRef.current);
@@ -169,7 +176,8 @@ export const MapsNavigationModule: React.FC = () => {
         strokeColor: '#10b981',
         strokeOpacity: 0.25,
         strokeWeight: 5,
-        zIndex: 50,
+        zIndex: 5,
+        clickable: false,
         icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 2, fillColor: '#10b981', fillOpacity: 0.4, strokeColor: 'transparent' }, offset: '0', repeat: '100px' }]
       });
       futurePolylineRef.current.setMap(mapRef.current);
@@ -270,6 +278,24 @@ export const MapsNavigationModule: React.FC = () => {
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-3">
         <button onClick={() => setMapTheme(mapTheme === 'light' ? 'dark' : 'light')} className="bg-white/95 backdrop-blur-md p-4 rounded-2xl text-slate-900 shadow-xl border border-slate-200">{mapTheme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}</button>
         <button onClick={fitAll} className="bg-white/95 p-4 rounded-2xl text-slate-900 shadow-xl border border-slate-200"><Target className="w-5 h-5" /></button>
+        
+        {/* BOTÓN RECENTRAR: Visible cuando isFollowing es false */}
+        <AnimatePresence>
+          {!isFollowing && driverPos && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8, x: 20 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8, x: 20 }}
+              onClick={() => {
+                setIsFollowing(true);
+                if (mapRef.current) mapRef.current.panTo(driverPos);
+              }}
+              className="bg-blue-500 text-white p-4 rounded-2xl shadow-xl shadow-blue-500/30 flex items-center justify-center border border-blue-400"
+            >
+              <Navigation className="w-5 h-5" fill="currentColor" />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="absolute bottom-32 inset-x-4 z-10 flex flex-col gap-4">
