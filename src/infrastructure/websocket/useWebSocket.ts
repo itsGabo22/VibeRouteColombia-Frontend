@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Client, StompSubscription, IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { useAuthStore } from '../../app/store/authStore';
 
 interface UseWebSocketOptions {
   /** Backend WebSocket URL, e.g. http://localhost:8080/ws-alertas */
@@ -19,8 +20,15 @@ interface UseWebSocketOptions {
 
 /**
  * Low-level STOMP hook for VibeRoute Colombia.
+ *
  * Connects via SockJS → STOMP, subscribes to a topic and fires
  * onMessage whenever the backend pushes a frame.
+ *
+ * Autenticación: Inyecta el JWT del authStore como header nativo
+ * STOMP "Authorization: Bearer <token>" durante el frame CONNECT.
+ * Esto permite que el ChannelInterceptor del backend autentique
+ * al usuario y establezca el Principal en el contexto de mensajería.
+ *
  * Cleans up the connection automatically on unmount.
  */
 export function useWebSocket({ 
@@ -34,8 +42,8 @@ export function useWebSocket({
   const clientRef = useRef<Client | null>(null);
   const subRef    = useRef<StompSubscription | null>(null);
 
-  // Stable references
-  const onMessageRef   = useRef(onMessage);
+  // Stable references to avoid re-creating the STOMP client on every render
+  const onMessageRef    = useRef(onMessage);
   const onConnectRef    = useRef(onConnect);
   const onDisconnectRef = useRef(onDisconnect);
   
@@ -46,12 +54,26 @@ export function useWebSocket({
   const connect = useCallback(() => {
     if (clientRef.current?.active) return;
 
+    // Leer el token JWT del store de autenticación persistido
+    const token = useAuthStore.getState().token;
+
+    // Construir los headers de conexión STOMP con el Bearer token.
+    // El backend (WebSocketConfig.JwtStompChannelInterceptor) lee este
+    // header durante el frame CONNECT para autenticar al usuario.
+    const connectHeaders: Record<string, string> = {};
+    if (token) {
+      connectHeaders['Authorization'] = `Bearer ${token}`;
+    }
+
     const client = new Client({
       webSocketFactory: () => new SockJS(url) as any,
+      connectHeaders,
       reconnectDelay:   5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
+
       onConnect: () => {
+        console.info('[WS] ✅ Conectado a STOMP', { topic, authenticated: !!token });
         onConnectRef.current?.();
         subRef.current = client.subscribe(topic, (frame: IMessage) => {
           try {
@@ -62,11 +84,18 @@ export function useWebSocket({
           }
         });
       },
+
       onDisconnect: () => {
+        console.info('[WS] Desconectado de STOMP');
         onDisconnectRef.current?.();
       },
+
       onStompError: (frame) => {
-        console.error('[WS] STOMP error', frame.headers['message']);
+        console.error('[WS] STOMP error:', frame.headers['message']);
+      },
+
+      onWebSocketError: (event) => {
+        console.error('[WS] WebSocket transport error:', event);
       },
     });
 
@@ -76,6 +105,7 @@ export function useWebSocket({
 
   const disconnect = useCallback(() => {
     subRef.current?.unsubscribe();
+    subRef.current = null;
     clientRef.current?.deactivate();
     clientRef.current = null;
   }, []);
