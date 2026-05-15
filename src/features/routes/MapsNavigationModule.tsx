@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, OverlayViewF, OverlayView } from '@react-google-maps/api';
 import { Loader2, Navigation, Clock, MapPin, Box, Target, Sun, Moon, Phone, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
@@ -276,7 +276,8 @@ export const MapsNavigationModule: React.FC = () => {
         options={{ 
           disableDefaultUI: true, 
           styles: mapStyles,
-          gestureHandling: 'greedy' // Mejora respuesta en móviles
+          gestureHandling: 'greedy', // Mejora respuesta en móviles
+          tilt: isFollowing ? 60 : 0 // [FASE 4] MODO 3D INMERSIVO: Tilt dinámico
         }}
       >
         {displayStops.map((stop: any, idx: number) => (
@@ -311,20 +312,35 @@ export const MapsNavigationModule: React.FC = () => {
         )}
 
         {driverPos && (
-          <MarkerF 
-            position={driverPos} 
-            zIndex={1000} 
-            icon={{ 
-              path: 'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z', 
-              fillColor: '#3b82f6', 
-              fillOpacity: 1, 
-              strokeColor: '#fff', 
-              strokeWeight: 2, 
-              scale: 1.5, 
-              anchor: new google.maps.Point(12, 12),
-              rotation: deviceHeading // APLICACIÓN DE BRÚJULA
-            }} 
-          />
+          <>
+            {/* [FASE 4] FEEDBACK VISUAL: Pulso animado para el conductor */}
+            <OverlayViewF
+              position={driverPos}
+              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+            >
+              <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
+                <motion.div
+                  animate={{ scale: [1, 2.5, 1], opacity: [0.6, 0, 0.6] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute w-8 h-8 bg-blue-500/40 rounded-full"
+                />
+              </div>
+            </OverlayViewF>
+            <MarkerF 
+              position={driverPos} 
+              zIndex={1000} 
+              icon={{ 
+                path: 'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z', 
+                fillColor: '#3b82f6', 
+                fillOpacity: 1, 
+                strokeColor: '#fff', 
+                strokeWeight: 2, 
+                scale: 1.5, 
+                anchor: new google.maps.Point(12, 12),
+                rotation: deviceHeading // APLICACIÓN DE BRÚJULA
+              }} 
+            />
+          </>
         )}
       </GoogleMap>
 
@@ -333,7 +349,14 @@ export const MapsNavigationModule: React.FC = () => {
       <div className="absolute top-4 left-4 z-20 pointer-events-none w-full max-w-[calc(100%-120px)]">
         <AnimatePresence mode="wait">
           {displayStops[0] && etaInfo && (
-            <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white/95 backdrop-blur-xl p-4 rounded-[2.5rem] border border-slate-200 shadow-2xl pointer-events-auto">
+            <motion.div 
+              key={displayStops[0].id} // [FASE 4] TRIGGER DE ANIMACIÓN AL CAMBIAR DESTINO
+              initial={{ x: -20, opacity: 0 }} 
+              animate={{ x: 0, opacity: 1 }} 
+              exit={{ x: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-white/95 backdrop-blur-xl p-4 rounded-[2.5rem] border border-slate-200 shadow-2xl pointer-events-auto"
+            >
               <div className="flex items-start gap-4">
                 <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-3 rounded-2xl text-white shadow-lg shadow-emerald-500/20"><Navigation className="w-6 h-6" fill="currentColor" /></div>
                 <div className="flex-1 min-w-0">
