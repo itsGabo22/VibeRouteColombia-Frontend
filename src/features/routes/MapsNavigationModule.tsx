@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, OverlayViewF, OverlayView } from '@react-google-maps/api';
 import { Loader2, Navigation, Clock, MapPin, Box, Target, Sun, Moon, Phone, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
@@ -30,9 +30,14 @@ export const MapsNavigationModule: React.FC = () => {
   
   const [isFollowing, setIsFollowing] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [deviceHeading, setDeviceHeading] = useState(0); // ESTADO PARA BRÚJULA
   
   const mapRef = useRef<google.maps.Map | null>(null);
   const lastRequestId = useRef<number>(0);
+  const prevActiveCount = useRef<number>(0); // [FASE 2] REF PARA SEGUIMIENTO DE ACTIVOS
+
+  // [FASE 1] DESCONEXIÓN DEL CENTRO REACTIVO: Calculamos el centro inicial una sola vez
+  const initialCenter = useMemo(() => driverPos || { lat: 1.2136, lng: -77.2811 }, []);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -48,15 +53,7 @@ export const MapsNavigationModule: React.FC = () => {
     { "featureType": "water", "stylers": [{ "color": mapTheme === 'light' ? "#cbd5e1" : "#050d14" }] }
   ], [mapTheme]);
 
-  // Limpiar solo el estado LOCAL de ruta al montar. NO tocar backupOrders del store
-  // (ya fueron cargados por DriverDashboardPage antes de montar este componente).
-  useEffect(() => {
-    setActivePath([]);
-    setFuturePath([]);
-    setEtaInfo(null);
-    setRoute(null);
-  }, []);
-
+  // DECLARACIÓN DE CALLBACKS (ANTES DE EFECTOS)
   const syncRoute = useCallback(async (targetMode: 'EFFICIENCY' | 'PRIORITY') => {
     if (!currentBatchId || !driverPos || !isLoaded) {
        setLoading(false);
@@ -83,8 +80,18 @@ export const MapsNavigationModule: React.FC = () => {
       setRoute(optRoute);
       setRouteVersion(prev => prev + 1);
 
+      // [FASE 2] FILTRADO ACTIVO: Ignorar paradas ya completadas para el trazado de la polilínea
+      const activeOrders = optRoute.stops.filter((s: any) => 
+        !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(s.status)
+      );
+
+      if (activeOrders.length === 0) {
+        setOptimizing(false);
+        return;
+      }
+
       const ds = new google.maps.DirectionsService();
-      const stops = optRoute.stops.map((s: any) => ({
+      const stops = activeOrders.map((s: any) => ({
         location: { lat: Number(s.lat || s.location?.lat), lng: Number(s.lng || s.location?.lng) },
         stopover: true
       }));
@@ -118,18 +125,59 @@ export const MapsNavigationModule: React.FC = () => {
     }
   }, [currentBatchId, driverPos, isLoaded, setRoute]);
 
+  // INTEGRACIÓN DE GIROSCOPIO / BRÚJULA (DeviceOrientation API)
+  useEffect(() => {
+    const handleOrientation = (e: any) => {
+      // Prioridad a iOS (webkitCompassHeading)
+      if (e.webkitCompassHeading !== undefined) {
+        setDeviceHeading(e.webkitCompassHeading);
+      } 
+      // Estándar absoluto (Android/Chrome)
+      else if (e.absolute && e.alpha !== null) {
+        setDeviceHeading(360 - e.alpha);
+      }
+    };
+
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    
+    return () => {
+      window.removeEventListener('deviceorientationabsolute', handleOrientation);
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, []);
+
+  // [FASE 2] GATILLO REACTIVO: Recalcular ruta al completar pedidos
+  useEffect(() => {
+    const activeCount = backupOrders.filter(o => 
+      !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(o.status)
+    ).length;
+
+    if (activeCount < prevActiveCount.current && activeCount > 0 && isLoaded) {
+      syncRoute(optMode);
+    }
+    prevActiveCount.current = activeCount;
+  }, [backupOrders, optMode, syncRoute, isLoaded]);
+
+  // Limpiar solo el estado LOCAL de ruta al montar.
+  useEffect(() => {
+    setActivePath([]);
+    setFuturePath([]);
+    setEtaInfo(null);
+    setRoute(null);
+  }, []);
+
   // DISPARADORES DE SINCRONIZACIÓN
   useEffect(() => {
     if (!isLoaded) return;
     if (currentBatchId && driverPos) {
       syncRoute(optMode);
     } else {
-      // API cargada pero sin lote o sin GPS aún: mostrar mapa con backupOrders
       setLoading(false);
     }
-  }, [optMode, currentBatchId, !!driverPos, isLoaded]);
+  }, [optMode, currentBatchId, !!driverPos, isLoaded, syncRoute]);
 
-  // SEGUIMIENTO DINÁMICO
+  // SEGUIMIENTO DINÁMICO: Único responsable del movimiento de cámara
   useEffect(() => {
     if (isFollowing && mapRef.current && driverPos) {
       mapRef.current.panTo(driverPos);
@@ -212,20 +260,31 @@ export const MapsNavigationModule: React.FC = () => {
   if (!isLoaded || (loading && !driverPos)) return <div className="w-full h-full flex flex-col items-center justify-center bg-white"><Loader2 className="w-12 h-12 text-emerald-500 animate-spin mb-4" /><p className="text-sm font-black text-slate-900 uppercase tracking-widest animate-pulse">Iniciando Navegación...</p></div>;
 
   return (
-    <div className={`relative w-full h-full overflow-hidden ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}>
+    <div 
+      className={`relative w-full h-full overflow-hidden ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}
+      onTouchStart={() => setIsFollowing(false)} // SENSIBILIDAD MÓVIL: Apagar seguimiento al tocar
+    >
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={driverPos || { lat: 1.2136, lng: -77.2811 }}
+        center={initialCenter} // CENTRO ESTÁTICO: Evita el "Efecto Liga"
         zoom={16}
         onLoad={m => { mapRef.current = m; }}
         onDragStart={() => setIsFollowing(false)}
-        options={{ disableDefaultUI: true, styles: mapStyles }}
+        options={{ 
+          disableDefaultUI: true, 
+          styles: mapStyles,
+          gestureHandling: 'greedy', // Mejora respuesta en móviles
+          tilt: isFollowing ? 60 : 0 // [FASE 4] MODO 3D INMERSIVO: Tilt dinámico
+        }}
       >
         {displayStops.map((stop: any, idx: number) => (
           <MarkerF
             key={`${stop.id || idx}-v${routeVersion}`}
             position={{ lat: stop.lat, lng: stop.lng }}
-            onClick={() => setSelectedOrder(stop)}
+            onClick={(e) => {
+               // Prevenir que el click en marcador apague el seguimiento si no es drag
+               setSelectedOrder(stop);
+            }}
             label={{ text: (idx + 1).toString(), color: 'white', fontWeight: '900', fontSize: '11px' }}
             icon={{ path: google.maps.SymbolPath.CIRCLE, fillColor: idx === 0 ? '#fbbf24' : '#f43f5e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 8 }}
           />
@@ -250,15 +309,51 @@ export const MapsNavigationModule: React.FC = () => {
         )}
 
         {driverPos && (
-          <MarkerF position={driverPos} zIndex={1000} icon={{ path: 'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z', fillColor: '#3b82f6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.5, anchor: new google.maps.Point(12, 12) }} />
+          <>
+            {/* [FASE 4] FEEDBACK VISUAL: Pulso animado para el conductor */}
+            <OverlayViewF
+              position={driverPos}
+              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+            >
+              <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
+                <motion.div
+                  animate={{ scale: [1, 2.5, 1], opacity: [0.6, 0, 0.6] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute w-8 h-8 bg-blue-500/40 rounded-full"
+                />
+              </div>
+            </OverlayViewF>
+            <MarkerF 
+              position={driverPos} 
+              zIndex={1000} 
+              icon={{ 
+                path: 'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z', 
+                fillColor: '#3b82f6', 
+                fillOpacity: 1, 
+                strokeColor: '#fff', 
+                strokeWeight: 2, 
+                scale: 1.5, 
+                anchor: new google.maps.Point(12, 12),
+                rotation: deviceHeading // APLICACIÓN DE BRÚJULA
+              }} 
+            />
+          </>
         )}
       </GoogleMap>
+
 
       {/* PANEL SUPERIOR */}
       <div className="absolute top-4 left-4 z-20 pointer-events-none w-full max-w-[calc(100%-120px)]">
         <AnimatePresence mode="wait">
           {displayStops[0] && etaInfo && (
-            <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white/95 backdrop-blur-xl p-4 rounded-[2.5rem] border border-slate-200 shadow-2xl pointer-events-auto">
+            <motion.div 
+              key={displayStops[0].id} // [FASE 4] TRIGGER DE ANIMACIÓN AL CAMBIAR DESTINO
+              initial={{ x: -20, opacity: 0 }} 
+              animate={{ x: 0, opacity: 1 }} 
+              exit={{ x: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-white/95 backdrop-blur-xl p-4 rounded-[2.5rem] border border-slate-200 shadow-2xl pointer-events-auto"
+            >
               <div className="flex items-start gap-4">
                 <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-3 rounded-2xl text-white shadow-lg shadow-emerald-500/20"><Navigation className="w-6 h-6" fill="currentColor" /></div>
                 <div className="flex-1 min-w-0">
