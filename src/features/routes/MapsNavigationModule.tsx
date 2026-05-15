@@ -34,6 +34,7 @@ export const MapsNavigationModule: React.FC = () => {
   
   const mapRef = useRef<google.maps.Map | null>(null);
   const lastRequestId = useRef<number>(0);
+  const prevActiveCount = useRef<number>(0); // [FASE 2] REF PARA SEGUIMIENTO DE ACTIVOS
 
   // DESCONEXIÓN DEL CENTRO REACTIVO: Calculamos el centro inicial una sola vez
   const initialCenter = useMemo(() => driverPos || { lat: 1.2136, lng: -77.2811 }, []);
@@ -75,6 +76,19 @@ export const MapsNavigationModule: React.FC = () => {
     };
   }, []);
 
+  // [FASE 2] GATILLO REACTIVO: Recalcular ruta al completar pedidos
+  useEffect(() => {
+    const activeCount = backupOrders.filter(o => 
+      !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(o.status)
+    ).length;
+
+    // Si hay menos activos que antes, significa que se completó uno
+    if (activeCount < prevActiveCount.current && activeCount > 0 && isLoaded) {
+      syncRoute(optMode);
+    }
+    prevActiveCount.current = activeCount;
+  }, [backupOrders, optMode, syncRoute, isLoaded]);
+
   // Limpiar solo el estado LOCAL de ruta al montar. NO tocar backupOrders del store
   // (ya fueron cargados por DriverDashboardPage antes de montar este componente).
   useEffect(() => {
@@ -110,8 +124,18 @@ export const MapsNavigationModule: React.FC = () => {
       setRoute(optRoute);
       setRouteVersion(prev => prev + 1);
 
+      // [FASE 2] FILTRADO ACTIVO: Ignorar paradas ya completadas para el trazado de la polilínea
+      const activeOrders = optRoute.stops.filter((s: any) => 
+        !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(s.status)
+      );
+
+      if (activeOrders.length === 0) {
+        setOptimizing(false);
+        return;
+      }
+
       const ds = new google.maps.DirectionsService();
-      const stops = optRoute.stops.map((s: any) => ({
+      const stops = activeOrders.map((s: any) => ({
         location: { lat: Number(s.lat || s.location?.lat), lng: Number(s.lng || s.location?.lng) },
         stopover: true
       }));
