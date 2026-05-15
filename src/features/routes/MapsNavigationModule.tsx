@@ -30,9 +30,13 @@ export const MapsNavigationModule: React.FC = () => {
   
   const [isFollowing, setIsFollowing] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [deviceHeading, setDeviceHeading] = useState(0); // ESTADO PARA BRÚJULA
   
   const mapRef = useRef<google.maps.Map | null>(null);
   const lastRequestId = useRef<number>(0);
+
+  // DESCONEXIÓN DEL CENTRO REACTIVO: Calculamos el centro inicial una sola vez
+  const initialCenter = useMemo(() => driverPos || { lat: 1.2136, lng: -77.2811 }, []);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -47,6 +51,29 @@ export const MapsNavigationModule: React.FC = () => {
     { "featureType": "road", "stylers": [{ "color": mapTheme === 'light' ? "#ffffff" : "#162c44" }] },
     { "featureType": "water", "stylers": [{ "color": mapTheme === 'light' ? "#cbd5e1" : "#050d14" }] }
   ], [mapTheme]);
+
+  // INTEGRACIÓN DE GIROSCOPIO / BRÚJULA (DeviceOrientation API)
+  useEffect(() => {
+    const handleOrientation = (e: any) => {
+      // Prioridad a iOS (webkitCompassHeading)
+      if (e.webkitCompassHeading !== undefined) {
+        setDeviceHeading(e.webkitCompassHeading);
+      } 
+      // Estándar absoluto (Android/Chrome)
+      else if (e.absolute && e.alpha !== null) {
+        setDeviceHeading(360 - e.alpha);
+      }
+    };
+
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    // Fallback para dispositivos que no soportan 'absolute'
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    
+    return () => {
+      window.removeEventListener('deviceorientationabsolute', handleOrientation);
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, []);
 
   // Limpiar solo el estado LOCAL de ruta al montar. NO tocar backupOrders del store
   // (ya fueron cargados por DriverDashboardPage antes de montar este componente).
@@ -129,7 +156,7 @@ export const MapsNavigationModule: React.FC = () => {
     }
   }, [optMode, currentBatchId, !!driverPos, isLoaded]);
 
-  // SEGUIMIENTO DINÁMICO
+  // SEGUIMIENTO DINÁMICO: Único responsable del movimiento de cámara
   useEffect(() => {
     if (isFollowing && mapRef.current && driverPos) {
       mapRef.current.panTo(driverPos);
@@ -212,20 +239,30 @@ export const MapsNavigationModule: React.FC = () => {
   if (!isLoaded || (loading && !driverPos)) return <div className="w-full h-full flex flex-col items-center justify-center bg-white"><Loader2 className="w-12 h-12 text-emerald-500 animate-spin mb-4" /><p className="text-sm font-black text-slate-900 uppercase tracking-widest animate-pulse">Iniciando Navegación...</p></div>;
 
   return (
-    <div className={`relative w-full h-full overflow-hidden ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}>
+    <div 
+      className={`relative w-full h-full overflow-hidden ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}
+      onTouchStart={() => setIsFollowing(false)} // SENSIBILIDAD MÓVIL: Apagar seguimiento al tocar
+    >
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={driverPos || { lat: 1.2136, lng: -77.2811 }}
+        center={initialCenter} // CENTRO ESTÁTICO: Evita el "Efecto Liga"
         zoom={16}
         onLoad={m => { mapRef.current = m; }}
         onDragStart={() => setIsFollowing(false)}
-        options={{ disableDefaultUI: true, styles: mapStyles }}
+        options={{ 
+          disableDefaultUI: true, 
+          styles: mapStyles,
+          gestureHandling: 'greedy' // Mejora respuesta en móviles
+        }}
       >
         {displayStops.map((stop: any, idx: number) => (
           <MarkerF
             key={`${stop.id || idx}-v${routeVersion}`}
             position={{ lat: stop.lat, lng: stop.lng }}
-            onClick={() => setSelectedOrder(stop)}
+            onClick={(e) => {
+               // Prevenir que el click en marcador apague el seguimiento si no es drag
+               setSelectedOrder(stop);
+            }}
             label={{ text: (idx + 1).toString(), color: 'white', fontWeight: '900', fontSize: '11px' }}
             icon={{ path: google.maps.SymbolPath.CIRCLE, fillColor: idx === 0 ? '#fbbf24' : '#f43f5e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 8 }}
           />
@@ -250,9 +287,23 @@ export const MapsNavigationModule: React.FC = () => {
         )}
 
         {driverPos && (
-          <MarkerF position={driverPos} zIndex={1000} icon={{ path: 'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z', fillColor: '#3b82f6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.5, anchor: new google.maps.Point(12, 12) }} />
+          <MarkerF 
+            position={driverPos} 
+            zIndex={1000} 
+            icon={{ 
+              path: 'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z', 
+              fillColor: '#3b82f6', 
+              fillOpacity: 1, 
+              strokeColor: '#fff', 
+              strokeWeight: 2, 
+              scale: 1.5, 
+              anchor: new google.maps.Point(12, 12),
+              rotation: deviceHeading // APLICACIÓN DE BRÚJULA
+            }} 
+          />
         )}
       </GoogleMap>
+
 
       {/* PANEL SUPERIOR */}
       <div className="absolute top-4 left-4 z-20 pointer-events-none w-full max-w-[calc(100%-120px)]">
