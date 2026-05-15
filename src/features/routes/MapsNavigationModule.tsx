@@ -36,7 +36,7 @@ export const MapsNavigationModule: React.FC = () => {
   const lastRequestId = useRef<number>(0);
   const prevActiveCount = useRef<number>(0); // [FASE 2] REF PARA SEGUIMIENTO DE ACTIVOS
 
-  // DESCONEXIÓN DEL CENTRO REACTIVO: Calculamos el centro inicial una sola vez
+  // [FASE 1] DESCONEXIÓN DEL CENTRO REACTIVO: Calculamos el centro inicial una sola vez
   const initialCenter = useMemo(() => driverPos || { lat: 1.2136, lng: -77.2811 }, []);
 
   const { isLoaded, loadError } = useJsApiLoader({
@@ -53,51 +53,7 @@ export const MapsNavigationModule: React.FC = () => {
     { "featureType": "water", "stylers": [{ "color": mapTheme === 'light' ? "#cbd5e1" : "#050d14" }] }
   ], [mapTheme]);
 
-  // INTEGRACIÓN DE GIROSCOPIO / BRÚJULA (DeviceOrientation API)
-  useEffect(() => {
-    const handleOrientation = (e: any) => {
-      // Prioridad a iOS (webkitCompassHeading)
-      if (e.webkitCompassHeading !== undefined) {
-        setDeviceHeading(e.webkitCompassHeading);
-      } 
-      // Estándar absoluto (Android/Chrome)
-      else if (e.absolute && e.alpha !== null) {
-        setDeviceHeading(360 - e.alpha);
-      }
-    };
-
-    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-    // Fallback para dispositivos que no soportan 'absolute'
-    window.addEventListener('deviceorientation', handleOrientation, true);
-    
-    return () => {
-      window.removeEventListener('deviceorientationabsolute', handleOrientation);
-      window.removeEventListener('deviceorientation', handleOrientation);
-    };
-  }, []);
-
-  // [FASE 2] GATILLO REACTIVO: Recalcular ruta al completar pedidos
-  useEffect(() => {
-    const activeCount = backupOrders.filter(o => 
-      !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(o.status)
-    ).length;
-
-    // Si hay menos activos que antes, significa que se completó uno
-    if (activeCount < prevActiveCount.current && activeCount > 0 && isLoaded) {
-      syncRoute(optMode);
-    }
-    prevActiveCount.current = activeCount;
-  }, [backupOrders, optMode, syncRoute, isLoaded]);
-
-  // Limpiar solo el estado LOCAL de ruta al montar. NO tocar backupOrders del store
-  // (ya fueron cargados por DriverDashboardPage antes de montar este componente).
-  useEffect(() => {
-    setActivePath([]);
-    setFuturePath([]);
-    setEtaInfo(null);
-    setRoute(null);
-  }, []);
-
+  // DECLARACIÓN DE CALLBACKS (ANTES DE EFECTOS)
   const syncRoute = useCallback(async (targetMode: 'EFFICIENCY' | 'PRIORITY') => {
     if (!currentBatchId || !driverPos || !isLoaded) {
        setLoading(false);
@@ -169,16 +125,57 @@ export const MapsNavigationModule: React.FC = () => {
     }
   }, [currentBatchId, driverPos, isLoaded, setRoute]);
 
+  // INTEGRACIÓN DE GIROSCOPIO / BRÚJULA (DeviceOrientation API)
+  useEffect(() => {
+    const handleOrientation = (e: any) => {
+      // Prioridad a iOS (webkitCompassHeading)
+      if (e.webkitCompassHeading !== undefined) {
+        setDeviceHeading(e.webkitCompassHeading);
+      } 
+      // Estándar absoluto (Android/Chrome)
+      else if (e.absolute && e.alpha !== null) {
+        setDeviceHeading(360 - e.alpha);
+      }
+    };
+
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    
+    return () => {
+      window.removeEventListener('deviceorientationabsolute', handleOrientation);
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, []);
+
+  // [FASE 2] GATILLO REACTIVO: Recalcular ruta al completar pedidos
+  useEffect(() => {
+    const activeCount = backupOrders.filter(o => 
+      !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(o.status)
+    ).length;
+
+    if (activeCount < prevActiveCount.current && activeCount > 0 && isLoaded) {
+      syncRoute(optMode);
+    }
+    prevActiveCount.current = activeCount;
+  }, [backupOrders, optMode, syncRoute, isLoaded]);
+
+  // Limpiar solo el estado LOCAL de ruta al montar.
+  useEffect(() => {
+    setActivePath([]);
+    setFuturePath([]);
+    setEtaInfo(null);
+    setRoute(null);
+  }, []);
+
   // DISPARADORES DE SINCRONIZACIÓN
   useEffect(() => {
     if (!isLoaded) return;
     if (currentBatchId && driverPos) {
       syncRoute(optMode);
     } else {
-      // API cargada pero sin lote o sin GPS aún: mostrar mapa con backupOrders
       setLoading(false);
     }
-  }, [optMode, currentBatchId, !!driverPos, isLoaded]);
+  }, [optMode, currentBatchId, !!driverPos, isLoaded, syncRoute]);
 
   // SEGUIMIENTO DINÁMICO: Único responsable del movimiento de cámara
   useEffect(() => {
