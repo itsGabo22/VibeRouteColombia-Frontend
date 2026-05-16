@@ -157,7 +157,8 @@ export const MapsNavigationModule: React.FC = () => {
       syncRoute(optMode);
     }
     prevActiveCount.current = activeCount;
-  }, [backupOrders, optMode, syncRoute, isLoaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backupOrders, optMode, isLoaded]);
 
   // Limpiar solo el estado LOCAL de ruta al montar.
   useEffect(() => {
@@ -175,7 +176,8 @@ export const MapsNavigationModule: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [optMode, currentBatchId, !!driverPos, isLoaded, syncRoute]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optMode, currentBatchId, !!driverPos, isLoaded]);
 
   // SEGUIMIENTO DINÁMICO: Único responsable del movimiento de cámara
   useEffect(() => {
