@@ -263,8 +263,8 @@ export const MapsNavigationModule: React.FC = () => {
 
   return (
     <div 
-      className={`relative w-full h-full overflow-hidden ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}
-      onTouchStart={() => setIsFollowing(false)} // SENSIBILIDAD MÓVIL: Apagar seguimiento al tocar
+      className={`relative w-full h-full overflow-hidden touch-none ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}
+      onTouchStart={() => isFollowing && setIsFollowing(false)} // SENSIBILIDAD MÓVIL: Apagar seguimiento al tocar
     >
       <GoogleMap
         mapContainerStyle={containerStyle}
