@@ -258,20 +258,23 @@ export const MapsNavigationModule: React.FC = () => {
     mapRef.current.fitBounds(b, { top: 100, bottom: 250, left: 60, right: 60 });
   }, [displayStops, driverPos]);
 
+  const handleMapZoomChange = useCallback(() => {
+    if (isFollowing) setIsFollowing(false);
+  }, [isFollowing]);
+
+
   if (loadError) return <div className="p-8">Error: {loadError.message}</div>;
   if (!isLoaded || (loading && !driverPos)) return <div className="w-full h-full flex flex-col items-center justify-center bg-white"><Loader2 className="w-12 h-12 text-emerald-500 animate-spin mb-4" /><p className="text-sm font-black text-slate-900 uppercase tracking-widest animate-pulse">Iniciando Navegación...</p></div>;
 
   return (
-    <div 
-      className={`relative w-full h-full overflow-hidden touch-none ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}
-      onTouchStart={() => isFollowing && setIsFollowing(false)} // SENSIBILIDAD MÓVIL: Apagar seguimiento al tocar
-    >
+    <div className={`relative w-full h-full overflow-hidden ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}>
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={initialCenter} // CENTRO ESTÁTICO: Evita el "Efecto Liga"
         zoom={16}
         onLoad={m => { mapRef.current = m; }}
         onDragStart={() => setIsFollowing(false)}
+        onZoomChanged={handleMapZoomChange}
         options={{ 
           disableDefaultUI: true, 
           styles: mapStyles,
