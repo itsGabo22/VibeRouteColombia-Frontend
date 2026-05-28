@@ -242,24 +242,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
              <div className="p-6 border border-amber-500/10 bg-amber-500/5 rounded-3xl flex items-center gap-6">
                 <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                  <Cpu size={24} className="opacity-50" />
-                </div>
-                <div className="flex-1">
-                   <p className="text-[10px] uppercase tracking-widest opacity-40">Processor Load</p>
-                   <div className="flex items-center gap-4">
-                      <div className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden">
-                        <motion.div 
-                          animate={{ width: ['12%', '45%', '33%'] }} 
-                          transition={{ repeat: Infinity, duration: 8 }}
-                          className="h-full bg-amber-500" 
-                        />
-                      </div>
-                      <span className="text-xs font-bold">12.5%</span>
-                   </div>
-                </div>
-             </div>
-             <div className="p-6 border border-amber-500/10 bg-amber-500/5 rounded-3xl flex items-center gap-6">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
                   <Database size={24} className="opacity-50" />
                 </div>
                 <div className="flex-1">
