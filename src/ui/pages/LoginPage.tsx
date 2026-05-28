@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, LogIn, Loader2, ShieldCheck, AlertCircle, Phone, } from 'lucide-react';
 import { useAuthStore } from '../../app/store/authStore';
 import api from '../../shared/lib/api';
-import { IconPasswordHidden } from '../../shared/components/password/PasswordVisibilityIcons';
+import { IconPasswordHidden, IconPasswordVisible } from '../../shared/components/password/PasswordVisibilityIcons';
 
 interface VibeRouteLogoProps {
   className?: string;
@@ -277,18 +277,25 @@ export const LoginPage: React.FC = () => {
                   <div className="relative group">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-400 transition-colors" size={20} />
                     <input
-                      type="password"
+                      type={showNewPassword ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-12 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
+                      className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
                       placeholder="Mínimo 8 caracteres"
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors focus:outline-none"
+                      tabIndex={-1}
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 group-focus-within:text-slate-400"
+                      aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     >
-                      <IconPasswordHidden size={20} />
+                      {showNewPassword ? (
+                        <IconPasswordVisible className="pointer-events-none" />
+                      ) : (
+                        <IconPasswordHidden className="pointer-events-none" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -301,21 +308,26 @@ export const LoginPage: React.FC = () => {
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-400 transition-colors" size={20} />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-12 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
+                    className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
                     placeholder="••••••••"
                     required
                   />
                   <button
-                     type="button"
-                     tabIndex={-1}
-                     className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 group-focus-within:text-slate-400"
-                     aria-label="Mostrar contraseña"
-                   >
-                     <IconPasswordHidden className="pointer-events-none" />
-                   </button>
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 group-focus-within:text-slate-400"
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPassword ? (
+                      <IconPasswordVisible className="pointer-events-none" />
+                    ) : (
+                      <IconPasswordHidden className="pointer-events-none" />
+                    )}
+                  </button>
                 </div>
               </div>
             )}
