@@ -5,6 +5,7 @@ import { Mail, Lock, LogIn, Loader2, ShieldCheck, AlertCircle, Phone, } from 'lu
 import { useAuthStore } from '../../app/store/authStore';
 import api from '../../shared/lib/api';
 import { IconPasswordHidden, IconPasswordVisible } from '../../shared/components/password/PasswordVisibilityIcons';
+import { PasswordCriteriaChecklist } from '../../shared/components/password/PasswordCriteriaChecklist';
 
 interface VibeRouteLogoProps {
   className?: string;
@@ -298,6 +299,7 @@ export const LoginPage: React.FC = () => {
                       )}
                     </button>
                   </div>
+                  <PasswordCriteriaChecklist visible={newPassword.length > 0} />
                 </div>
               </>
             )}
@@ -329,6 +331,7 @@ export const LoginPage: React.FC = () => {
                     )}
                   </button>
                 </div>
+                <PasswordCriteriaChecklist visible={password.length > 0} />
               </div>
             )}
 
