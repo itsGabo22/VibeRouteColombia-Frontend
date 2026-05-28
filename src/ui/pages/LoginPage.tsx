@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, LogIn, Loader2, ShieldCheck, AlertCircle, Phone } from 'lucide-react';
+import { Mail, Lock, LogIn, Loader2, ShieldCheck, AlertCircle, Phone, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../../app/store/authStore';
 import api from '../../shared/lib/api';
 
