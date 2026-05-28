@@ -189,13 +189,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
             <span className="text-[8px] uppercase tracking-widest opacity-50">Local Uptime</span>
             <span className="text-sm font-bold">{uptime}</span>
           </div>
-          <div className="px-6 py-3 border border-amber-500/30 rounded-xl bg-amber-500/5 flex flex-col items-center">
-            <span className="text-[8px] uppercase tracking-widest opacity-50">Node Health</span>
-            <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-                <span className="text-sm font-bold text-emerald-500">OPERATIONAL</span>
-            </div>
-          </div>
           <button onClick={handleLogout} className="flex items-center gap-2 px-6 py-3 bg-amber-500/10 hover:bg-rose-500 hover:text-black border border-amber-500/30 hover:border-transparent rounded-xl transition-all font-bold text-xs uppercase tracking-widest">
             <LogOut size={16} /> Disconnect
           </button>
