@@ -35,8 +35,8 @@ export const PasswordCriteriaChecklist: React.FC<PasswordCriteriaChecklistProps>
           return (
             <li
               key={id}
-              className={`flex items-center gap-2 text-xs transition-colors ${
-                met ? 'text-green-400' : 'text-slate-500'
+              className={`flex items-center gap-2 text-xs transition-colors duration-200 ${
+                met ? 'text-green-400' : 'text-red-400/80'
               }`}
             >
               {met ? (
