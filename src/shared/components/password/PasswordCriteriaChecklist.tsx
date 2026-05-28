@@ -22,9 +22,10 @@ export const PasswordCriteriaChecklist: React.FC<PasswordCriteriaChecklistProps>
 
   return (
     <div
-      className="mt-2 rounded-xl border border-slate-700/50 bg-slate-900/40 p-3"
+      className="mt-2 rounded-xl border border-slate-700/50 bg-slate-900/40 p-3 sm:p-3.5"
       role="status"
       aria-live="polite"
+      aria-label="Requisitos de contraseña segura"
     >
       <p className="mb-2 pl-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
         Requisitos de seguridad

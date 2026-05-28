@@ -275,10 +275,11 @@ export const LoginPage: React.FC = () => {
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Nueva Contraseña</label>
-                  <div className="relative group">
+                  <div className="relative group focus-within:ring-1 focus-within:ring-green-500/30 rounded-2xl">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-400 transition-colors" size={20} />
                     <input
                       type={showNewPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
@@ -287,9 +288,8 @@ export const LoginPage: React.FC = () => {
                     />
                     <button
                       type="button"
-                      tabIndex={-1}
                       onClick={() => setShowNewPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 group-focus-within:text-slate-400"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 active:scale-95 sm:right-3 sm:h-10 sm:w-10 sm:min-h-0 sm:min-w-0"
                       aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     >
                       {showNewPassword ? (
@@ -307,10 +307,11 @@ export const LoginPage: React.FC = () => {
             {!isResetMode && (
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Contraseña</label>
-                <div className="relative group">
+                <div className="relative group focus-within:ring-1 focus-within:ring-green-500/30 rounded-2xl">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-400 transition-colors" size={20} />
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
@@ -319,9 +320,8 @@ export const LoginPage: React.FC = () => {
                   />
                   <button
                     type="button"
-                    tabIndex={-1}
                     onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 group-focus-within:text-slate-400"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 active:scale-95 sm:right-3 sm:h-10 sm:w-10 sm:min-h-0 sm:min-w-0"
                     aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   >
                     {showPassword ? (
