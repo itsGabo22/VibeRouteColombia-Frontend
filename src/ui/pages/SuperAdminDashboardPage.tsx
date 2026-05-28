@@ -1,17 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Terminal, 
-  Shield, 
   Activity, 
   Users, 
   Trash2, 
   Download, 
-  Database, 
   RefreshCcw,
   LogOut,
   AlertTriangle,
-  Cpu,
-  Unplug,
   UserPlus,
   X,
   Edit3,
@@ -51,7 +47,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [users, setUsers] = useState<GenericUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [uptime, setUptime] = useState('00:00:00');
   
   // Modal State
@@ -66,8 +61,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
   });
   const [isManagementOpen, setIsManagementOpen] = useState(false);
 
-  const logEndRef = useRef<HTMLDivElement>(null);
-
   const fetchData = async () => {
     try {
       const [logsRes, usersRes] = await Promise.all([
@@ -78,8 +71,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
       setUsers(usersRes.data);
     } catch (err) {
       console.error('Error fetching system data', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -161,9 +152,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
   const amber = {
     text: '#FFB000',
     bg: '#0D0A00',
-    border: 'rgba(255, 176, 0, 0.2)',
-    accent: 'rgba(255, 176, 0, 0.1)',
-    high: '#FFCC00'
   };
 
   return (
@@ -234,7 +222,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
                   </div>
                 </div>
               ))}
-              <div ref={logEndRef} />
             </div>
           </section>
         </div>
