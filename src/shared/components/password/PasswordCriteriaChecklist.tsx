@@ -1,19 +1,24 @@
 import React from 'react';
-import { Circle } from 'lucide-react';
+import { Check, Circle } from 'lucide-react';
+import { evaluatePasswordCriteria } from '../../lib/passwordValidation';
 
 interface PasswordCriteriaChecklistProps {
   visible: boolean;
+  value: string;
 }
 
 const CRITERIA = [
-  { id: 'minLength', label: 'Mínimo 8 caracteres' },
-  { id: 'uppercase', label: 'Al menos una mayúscula' },
-] as const;
+  { id: 'minLength' as const, label: 'Mínimo 8 caracteres' },
+  { id: 'uppercase' as const, label: 'Al menos una mayúscula' },
+];
 
 export const PasswordCriteriaChecklist: React.FC<PasswordCriteriaChecklistProps> = ({
   visible,
+  value,
 }) => {
   if (!visible) return null;
+
+  const results = evaluatePasswordCriteria(value);
 
   return (
     <div
@@ -25,12 +30,25 @@ export const PasswordCriteriaChecklist: React.FC<PasswordCriteriaChecklistProps>
         Requisitos de seguridad
       </p>
       <ul className="space-y-1.5">
-        {CRITERIA.map(({ id, label }) => (
-          <li key={id} className="flex items-center gap-2 text-xs text-slate-400">
-            <Circle size={14} strokeWidth={1.5} className="shrink-0 text-slate-600" aria-hidden />
-            <span>{label}</span>
-          </li>
-        ))}
+        {CRITERIA.map(({ id, label }) => {
+          const met = results[id];
+          return (
+            <li
+              key={id}
+              className={`flex items-center gap-2 text-xs transition-colors ${
+                met ? 'text-green-400' : 'text-slate-500'
+              }`}
+            >
+              {met ? (
+                <Check size={14} className="shrink-0 text-green-400" aria-hidden />
+              ) : (
+                <Circle size={14} strokeWidth={1.5} className="shrink-0 text-slate-600" aria-hidden />
+              )}
+              <span>{label}</span>
+              <span className="sr-only">{met ? 'cumplido' : 'pendiente'}</span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

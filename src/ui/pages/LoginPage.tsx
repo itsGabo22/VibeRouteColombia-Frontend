@@ -299,7 +299,7 @@ export const LoginPage: React.FC = () => {
                       )}
                     </button>
                   </div>
-                  <PasswordCriteriaChecklist visible={newPassword.length > 0} />
+                  <PasswordCriteriaChecklist visible={newPassword.length > 0} value={newPassword} />
                 </div>
               </>
             )}
@@ -331,7 +331,7 @@ export const LoginPage: React.FC = () => {
                     )}
                   </button>
                 </div>
-                <PasswordCriteriaChecklist visible={password.length > 0} />
+                <PasswordCriteriaChecklist visible={password.length > 0} value={password} />
               </div>
             )}
 
