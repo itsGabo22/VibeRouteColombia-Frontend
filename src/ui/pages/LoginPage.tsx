@@ -95,6 +95,8 @@ const VibeRouteLogo: React.FC<VibeRouteLogoProps> = ({ className = "w-full h-ful
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
@@ -321,7 +323,11 @@ export const LoginPage: React.FC = () => {
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => setIsResetMode(!isResetMode)}
+                onClick={() => {
+                  setIsResetMode(!isResetMode);
+                  setShowPassword(false);
+                  setShowNewPassword(false);
+                }}
                 className="text-xs font-bold text-green-400 hover:text-green-300 transition-colors uppercase tracking-widest px-1"
               >
                 {isResetMode ? 'Volver al ingreso' : '¿Olvidaste tu contraseña?'}
