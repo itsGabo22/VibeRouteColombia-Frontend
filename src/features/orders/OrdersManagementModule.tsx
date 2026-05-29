@@ -219,17 +219,17 @@ export const OrdersManagementModule: React.FC<{
   };
 
   const statusMap: any = {
-    'PENDING': { label: 'PENDIENTE', color: 'bg-slate-100 text-slate-600', icon: Clock },
-    'ON_ROUTE': { label: 'EN RUTA', color: 'bg-blue-50 text-blue-600', icon: Navigation },
-    'DELIVERED': { label: 'ENTREGADO', color: 'bg-green-50 text-green-600', icon: CheckCircle2 },
-    'CANCELLED': { label: 'CANCELADO', color: 'bg-red-50 text-red-600', icon: XCircle },
-    'RETURNED': { label: 'DEVUELTO', color: 'bg-amber-50 text-amber-600', icon: AlertTriangle },
+    'PENDING': { label: 'PENDIENTE', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
+    'ON_ROUTE': { label: 'EN RUTA', color: 'bg-blue-100 text-blue-700', icon: Navigation },
+    'DELIVERED': { label: 'ENTREGADO', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
+    'CANCELLED': { label: 'CANCELADO', color: 'bg-red-100 text-red-700', icon: XCircle },
+    'RETURNED': { label: 'DEVUELTO', color: 'bg-amber-100 text-amber-700', icon: AlertTriangle },
   };
 
   const priorityMap: any = {
-    'HIGH': { label: 'ALTA', color: 'bg-red-50 text-red-500' },
-    'MEDIUM': { label: 'MEDIA', color: 'bg-amber-50 text-amber-500' },
-    'LOW': { label: 'BAJA', color: 'bg-blue-50 text-blue-500' },
+    'HIGH': { label: 'ALTA', color: 'bg-red-100 text-red-700' },
+    'MEDIUM': { label: 'MEDIA', color: 'bg-amber-100 text-amber-700' },
+    'LOW': { label: 'BAJA', color: 'bg-emerald-100 text-emerald-700' },
   };
 
   const filteredOrders = orders.filter(order => {
@@ -246,14 +246,14 @@ export const OrdersManagementModule: React.FC<{
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
-        <div className="flex w-full xl:w-auto gap-4 flex-col md:flex-row">
-           <div className="relative w-full md:w-80 group">
-             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-green-500 transition-colors" size={18} />
+      <div className="flex flex-col xl:flex-row gap-4 items-stretch xl:items-center justify-between">
+        <div className="flex w-full xl:flex-1 gap-4 flex-col md:flex-row">
+           <div className="relative flex-1 max-w-xl group">
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-500 transition-colors" size={18} />
              <input 
                type="text"
                placeholder="Buscar referencia o cliente..."
-               className="w-full pl-12 pr-6 py-4 bg-white border border-slate-100 rounded-3xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-green-500/5 focus:border-green-500/20 transition-all shadow-sm"
+               className="w-full rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 pl-11 pr-4 py-3 text-sm transition-all duration-200"
                value={searchTerm}
                onChange={(e) => setSearchTerm(e.target.value)}
              />
@@ -265,7 +265,7 @@ export const OrdersManagementModule: React.FC<{
                 <select
                   value={driverFilter}
                   onChange={(e) => setDriverFilter(e.target.value)}
-                  className="w-full pl-12 pr-6 py-4 bg-white border border-slate-100 rounded-3xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-green-500/5 focus:border-green-500/20 appearance-none shadow-sm cursor-pointer"
+                  className="w-full pl-12 pr-6 py-3 rounded-xl border border-slate-200 bg-white shadow-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-all duration-200 appearance-none text-sm font-medium cursor-pointer"
                 >
                    <option value="ALL">Todos los repartidores</option>
                    {availableDrivers.map(d => <option key={d} value={d}>{d}</option>)}
@@ -280,7 +280,7 @@ export const OrdersManagementModule: React.FC<{
             <button 
                onClick={handleDownloadRegionalReport}
                disabled={isDownloading}
-               className="px-8 py-4 bg-emerald-600 text-white rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200/50 flex items-center gap-3 disabled:opacity-50"
+               className="px-5 py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all duration-200 shadow-md shadow-emerald-200/50 flex items-center gap-3 disabled:opacity-50 whitespace-nowrap"
             >
                {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}
                Exportar Excel Regional
@@ -291,7 +291,7 @@ export const OrdersManagementModule: React.FC<{
           {!driverName && selectedIds.length > 0 && (
             <button
               onClick={handleBulkDelete}
-              className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-100 animate-in fade-in zoom-in duration-300"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition-all duration-200 shadow-md shadow-red-100 animate-in fade-in zoom-in"
             >
               <Trash2 size={14} />
               Borrar {selectedIds.length}
@@ -304,10 +304,10 @@ export const OrdersManagementModule: React.FC<{
             <button
               key={s}
               onClick={() => { setFilterStatus(s); setCurrentPage(1); }}
-              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
                 filterStatus === s 
-                  ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' 
-                  : 'bg-white text-slate-400 hover:bg-slate-50 border border-slate-50'
+                  ? 'bg-slate-900 text-white shadow-md' 
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
               {s === 'ALL' ? 'TODOS' : statusMap[s]?.label || s}
@@ -326,13 +326,13 @@ export const OrdersManagementModule: React.FC<{
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
                 {!driverName && (
-                  <th className="pl-8 py-6 w-10">
+                  <th className="px-4 py-3 w-10">
                     <input 
                       type="checkbox" 
                       className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
@@ -341,14 +341,14 @@ export const OrdersManagementModule: React.FC<{
                     />
                   </th>
                 )}
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pedido</th>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destino Operativo</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pedido</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destino Operativo</th>
                 {!driverName && (
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Conductor</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Conductor</th>
                 )}
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Prioridad</th>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado</th>
-                <th className="px-8 py-6"></th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Prioridad</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -368,11 +368,11 @@ export const OrdersManagementModule: React.FC<{
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     key={order.id} 
-                    className="hover:bg-slate-50/50 transition-all cursor-pointer group"
+                    className="hover:bg-slate-50 transition-colors duration-150 cursor-pointer group"
                     onClick={() => setSelectedOrder(order)}
                   >
                     {!driverName && (
-                      <td className="pl-8 py-6" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
                           className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
@@ -381,7 +381,7 @@ export const OrdersManagementModule: React.FC<{
                         />
                       </td>
                     )}
-                    <td className="px-8 py-6">
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center font-black text-xs shadow-sm shadow-green-100 group-hover:scale-110 transition-transform">
                             #{order.id}
@@ -392,7 +392,7 @@ export const OrdersManagementModule: React.FC<{
                          </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
+                    <td className="px-4 py-3">
                        <div className="flex items-start gap-2">
                           <MapPin size={12} className="text-slate-300 mt-1" />
                           <div>
@@ -402,29 +402,29 @@ export const OrdersManagementModule: React.FC<{
                        </div>
                     </td>
                     {!driverName && (
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-3">
                          <div className="flex items-center gap-2">
                             <User size={12} className="text-slate-300" />
                             <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{order.driverName}</span>
                          </div>
                       </td>
                     )}
-                    <td className="px-8 py-6">
+                    <td className="px-4 py-3">
                        <div className="flex justify-center">
-                         <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${priorityMap[order.priority]?.color || 'bg-slate-100 text-slate-400'}`}>
+                         <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${priorityMap[order.priority]?.color || 'bg-slate-100 text-slate-400'}`}>
                            {priorityMap[order.priority]?.label || order.priority}
                          </span>
                        </div>
                     </td>
-                    <td className="px-8 py-6">
+                    <td className="px-4 py-3">
                        <div className="flex justify-center">
-                         <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-sm ${statusMap[order.status]?.color || 'bg-slate-50 text-slate-400'}`}>
+                         <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${statusMap[order.status]?.color || 'bg-slate-50 text-slate-400'}`}>
                            {React.createElement(statusMap[order.status]?.icon || Info, { size: 10 })}
                            {statusMap[order.status]?.label || order.status}
                          </span>
                        </div>
                     </td>
-                    <td className="px-8 py-6 text-right">
+                    <td className="px-4 py-3 text-right">
                        <button className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm">
                           <ChevronRight size={16} />
                        </button>
