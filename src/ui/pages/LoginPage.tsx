@@ -110,6 +110,8 @@ export const LoginPage: React.FC = () => {
 
   const isLoginPasswordValid = password.length >= 8;
   const isNewPasswordValid = newPassword.length >= 8;
+  const isSubmitDisabled =
+    isLoading || (isResetMode ? !isNewPasswordValid : !isLoginPasswordValid);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -366,8 +368,8 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 mt-4"
+              disabled={isSubmitDisabled}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:from-green-500 disabled:hover:to-emerald-600 disabled:active:scale-100 mt-4"
             >
               {isLoading ? (
                 <Loader2 className="animate-spin" size={20} />
