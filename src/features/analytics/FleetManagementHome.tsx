@@ -147,7 +147,7 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
         />
         <MetricCard 
           title="Margen de Utilidad" 
-          value={`${(Number(stats?.profitMargin) || 0).toFixed(1)}%`} 
+          value={`${(Number(stats?.profitMarginPercentage) || 0).toFixed(1)}%`} 
           trend="MARGEN" 
           isPositive={true} 
           icon={BarChart3} 
@@ -175,28 +175,40 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
            <div className="h-64 flex items-end gap-2 px-2 relative">
               {stats?.monthlyRevenue && Object.keys(stats.monthlyRevenue).length > 0 ? (
                 ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((_, i) => {
-                  const enMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                  const esMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-                  const val = Number(stats.monthlyRevenue[enMonths[i]]) || Number(stats.monthlyRevenue[esMonths[i]]) || 0;
-                  
-                  // Encontrar el valor máximo para que la gráfica sea dinámica
-                  const maxVal = Math.max(...Object.values(stats.monthlyRevenue).map(v => Number(v) || 0), 10000);
-                  const height = Math.min(100, (val / maxVal) * 100); 
-                  
-                  return (
-                    <div key={i} className="flex-1 bg-slate-50 rounded-t-lg relative group h-full flex items-end">
-                       <motion.div 
-                         initial={{ height: 0 }}
-                         animate={{ height: `${height || 5}%` }} // Min 5% to show something exists
-                         transition={{ delay: i * 0.05, duration: 1 }}
-                         className="w-full bg-teal-500/20 group-hover:bg-teal-500 transition-all rounded-t-lg relative"
-                       >
-                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                            ${(val / 1000).toFixed(1)}K
-                         </div>
-                       </motion.div>
-                    </div>
-                  );
+                   const enMonths = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+                   const esMonths = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+                   
+                   // Case-insensitive & locale-flexible value lookup
+                   const enMonth = enMonths[i];
+                   const esMonth = esMonths[i];
+                   let val = 0;
+                   for (const key of Object.keys(stats.monthlyRevenue)) {
+                     const lowerKey = key.toLowerCase().trim();
+                     if (lowerKey === enMonth || lowerKey === esMonth) {
+                       val = Number(stats.monthlyRevenue[key]) || 0;
+                       break;
+                     }
+                   }
+                   
+                   // Encontrar el valor máximo de manera segura para evitar -Infinity
+                   const rawValues = Object.values(stats.monthlyRevenue).map(v => Number(v) || 0);
+                   const maxVal = rawValues.length > 0 ? Math.max(...rawValues, 10000) : 10000;
+                   const height = Math.min(100, (val / maxVal) * 100); 
+                   
+                   return (
+                     <div key={i} className="flex-1 bg-slate-50 rounded-t-lg relative group h-full flex items-end">
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: `${height || 5}%` }} // Min 5% to show something exists
+                          transition={{ delay: i * 0.05, duration: 1 }}
+                          className="w-full bg-teal-500/20 group-hover:bg-teal-500 transition-all rounded-t-lg relative"
+                        >
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                             ${(val / 1000).toFixed(1)}K
+                          </div>
+                        </motion.div>
+                     </div>
+                   );
                 })
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-center">
@@ -223,7 +235,7 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
            
            <div className="space-y-6">
               {ranking
-                .filter(d => d.driverName.toLowerCase().includes(searchQuery.toLowerCase()))
+                .filter(d => (d.driverName || 'Anon').toLowerCase().includes(searchQuery.toLowerCase()))
                 .slice(0, 5)
                 .map((driver, i) => (
                 <div key={i} className="flex items-center gap-6 group hover:translate-x-2 transition-transform">
@@ -233,10 +245,10 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
                       <p className="text-[8px] font-bold text-slate-400">UNIT {driver.id || i+100}</p>
                    </div>
                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${driver.effectivenessPercentage}%` }} className={`h-full bg-teal-500`} />
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${Number(driver.effectivenessPercentage || 0)}%` }} className={`h-full bg-teal-500`} />
                    </div>
-                   <span className="w-12 text-[10px] font-bold text-slate-400 text-right">{Number(driver.effectivenessPercentage).toFixed(1)}%</span>
-                   <span className="w-20 text-[10px] font-black text-slate-900 text-right">${driver.successfulDeliveries * 15}K <span className="text-emerald-500">↑</span></span>
+                   <span className="w-12 text-[10px] font-bold text-slate-400 text-right">{(Number(driver.effectivenessPercentage) || 0).toFixed(1)}%</span>
+                   <span className="w-20 text-[10px] font-black text-slate-900 text-right">${(Number(driver.successfulDeliveries) || 0) * 15}K <span className="text-emerald-500">↑</span></span>
                 </div>
               ))}
               {ranking.length === 0 && (
