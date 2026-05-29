@@ -39,6 +39,7 @@ export const OrdersManagementModule: React.FC<{
   // Selection & Pagination
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState<30 | 60 | 100>(30);
   const ordersPerPage = 5;
 
   // Modals
@@ -421,7 +422,11 @@ export const OrdersManagementModule: React.FC<{
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Por página</span>
                 <select
-                  defaultValue="30"
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    setRowsPerPage(Number(e.target.value) as 30 | 60 | 100);
+                    setCurrentPage(1);
+                  }}
                   aria-label="Registros por página"
                   className="px-3 py-2 bg-white border border-slate-100 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest appearance-none cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                 >
