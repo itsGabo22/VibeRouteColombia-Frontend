@@ -414,9 +414,23 @@ export const OrdersManagementModule: React.FC<{
         {/* Pagination Controls */}
         {!loading && filteredOrders.length > ordersPerPage && (
           <div className="px-8 py-4 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Mostrando {Math.min(filteredOrders.length, currentPage * ordersPerPage)} de {filteredOrders.length}
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Mostrando {Math.min(filteredOrders.length, currentPage * ordersPerPage)} de {filteredOrders.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Por página</span>
+                <select
+                  defaultValue="30"
+                  aria-label="Registros por página"
+                  className="px-3 py-2 bg-white border border-slate-100 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest appearance-none cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                >
+                  <option value="30">30</option>
+                  <option value="60">60</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+            </div>
             <div className="flex gap-2">
               <button
                 disabled={currentPage === 1}
