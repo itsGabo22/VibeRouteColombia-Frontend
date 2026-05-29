@@ -164,8 +164,14 @@ export const OrdersManagementModule: React.FC<{
       setIsDownloading(true);
       // Evitamos el cache del navegador añadiendo un timestamp y limpiando el nombre
       const cleanCity = (activeCity || '').trim();
-      const cityQuery = cleanCity ? `city=${encodeURIComponent(cleanCity)}` : '';
-      const url = `/reports/generate-excel?t=${new Date().getTime()}${cityQuery ? '&' + cityQuery : ''}`;
+      const params = new URLSearchParams();
+      params.append('t', String(new Date().getTime()));
+      if (cleanCity) params.append('city', cleanCity);
+      if (filterStatus && filterStatus !== 'ALL') params.append('status', filterStatus);
+      if (driverFilter && driverFilter !== 'ALL') params.append('driver', driverFilter);
+      if (searchTerm && searchTerm.trim()) params.append('search', searchTerm.trim());
+      
+      const url = `/reports/generate-excel?${params.toString()}`;
       
       const response = await api.get(url, { responseType: 'blob' });
       
@@ -188,6 +194,13 @@ export const OrdersManagementModule: React.FC<{
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setFilterStatus('ALL');
+    setDriverFilter('ALL');
+    setCurrentPage(1);
   };
 
   const toggleSelectAll = () => {
@@ -298,6 +311,17 @@ export const OrdersManagementModule: React.FC<{
               {s === 'ALL' ? 'TODOS' : statusMap[s]?.label || s}
             </button>
           ))}
+
+          {/* Limpiar Filtros - solo visible cuando hay filtros activos */}
+          {(filterStatus !== 'ALL' || driverFilter !== 'ALL' || searchTerm.trim()) && (
+            <button
+              onClick={handleClearFilters}
+              className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-rose-50 to-orange-50 text-rose-500 hover:from-rose-100 hover:to-orange-100 border border-rose-100 transition-all whitespace-nowrap shadow-sm hover:shadow-md flex items-center gap-2"
+            >
+              <X size={14} />
+              Limpiar Filtros
+            </button>
+          )}
         </div>
       </div>
 
