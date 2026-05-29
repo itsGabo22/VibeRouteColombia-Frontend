@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Search, Filter, MapPin, Phone, User, Package, Clock, 
+  Search, MapPin, User, Package, Clock, 
   CheckCircle2, XCircle, ChevronRight, Navigation, Loader2,
-  Calendar, Info, AlertTriangle, TrendingUp, X, Trash2, FileText, ChevronLeft, Download
+  Info, AlertTriangle, X, Trash2, FileText, ChevronLeft,
+  SlidersHorizontal, ArrowUp, ArrowDown, Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
@@ -20,6 +21,18 @@ interface Order {
   createdAt?: string;
   nonDeliveryReason?: string;
   driverName?: string;
+  batchId?: number | string | null;
+}
+
+type SortField = 'priority' | 'status' | 'address' | 'createdAt' | 'driverName';
+type SortDirection = 'asc' | 'desc';
+
+interface AdvancedFilters {
+  priority: string;
+  status: string;
+  driver: string;
+  city: string;
+  date: string;
 }
 
 export const OrdersManagementModule: React.FC<{ 
@@ -34,6 +47,15 @@ export const OrdersManagementModule: React.FC<{
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [driverFilter, setDriverFilter] = useState<string>('ALL');
   const [availableDrivers, setAvailableDrivers] = useState<string[]>([]);
+  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    priority: 'ALL',
+    status: 'ALL',
+    driver: 'ALL',
+    city: 'ALL',
+    date: '',
+  });
+  const [sortConfig, setSortConfig] = useState<{ field: SortField; direction: SortDirection } | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   
@@ -210,6 +232,15 @@ export const OrdersManagementModule: React.FC<{
     setSearchTerm('');
     setFilterStatus('ALL');
     setDriverFilter('ALL');
+    setAdvancedFilters({
+      priority: 'ALL',
+      status: 'ALL',
+      driver: 'ALL',
+      city: 'ALL',
+      date: '',
+    });
+    setSortConfig(null);
+    setIsAdvancedFiltersOpen(false);
     setCurrentPage(1);
     setSelectedIds([]);
     fetchOrders();
@@ -239,20 +270,112 @@ export const OrdersManagementModule: React.FC<{
   const priorityMap: any = {
     'HIGH': { label: 'ALTA', color: 'bg-red-100 text-red-700' },
     'MEDIUM': { label: 'MEDIA', color: 'bg-amber-100 text-amber-700' },
-    'LOW': { label: 'BAJA', color: 'bg-emerald-100 text-emerald-700' },
+    'LOW': { label: 'BAJA', color: 'bg-slate-100 text-slate-600' },
   };
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = 
-      (order.clientReference || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.address || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterStatus === 'ALL' || order.status === filterStatus;
-    const matchesDriver = driverFilter === 'ALL' || order.driverName === driverFilter;
-    
-    return matchesSearch && matchesFilter && matchesDriver;
-  });
+  const uniqueCities = useMemo(
+    () => Array.from(new Set(orders.map(order => order.city).filter(Boolean))).sort(),
+    [orders]
+  );
+
+  const hasActiveFilters =
+    filterStatus !== 'ALL' ||
+    driverFilter !== 'ALL' ||
+    advancedFilters.priority !== 'ALL' ||
+    advancedFilters.status !== 'ALL' ||
+    advancedFilters.driver !== 'ALL' ||
+    advancedFilters.city !== 'ALL' ||
+    Boolean(advancedFilters.date) ||
+    Boolean(searchTerm.trim()) ||
+    Boolean(sortConfig);
+
+  const priorityRank: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+  const statusRank: Record<string, number> = { PENDING: 3, ON_ROUTE: 2, DELIVERED: 1, CANCELLED: 0, RETURNED: 0 };
+
+  const filteredOrders = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const result = orders.filter(order => {
+      const searchableValues = [
+        order.id,
+        order.clientReference,
+        order.clientName,
+        order.address,
+        order.driverName,
+        priorityMap[order.priority]?.label,
+        order.priority,
+        statusMap[order.status]?.label,
+        order.status,
+        order.city,
+        order.batchId,
+      ];
+
+      const matchesSearch = !normalizedSearch || searchableValues
+        .map(value => String(value ?? '').toLowerCase())
+        .some(value => value.includes(normalizedSearch));
+
+      const effectiveStatus = advancedFilters.status !== 'ALL' ? advancedFilters.status : filterStatus;
+      const effectiveDriver = advancedFilters.driver !== 'ALL' ? advancedFilters.driver : driverFilter;
+
+      const matchesStatus = effectiveStatus === 'ALL' || order.status === effectiveStatus;
+      const matchesDriver = effectiveDriver === 'ALL' || order.driverName === effectiveDriver;
+      const matchesPriority = advancedFilters.priority === 'ALL' || order.priority === advancedFilters.priority;
+      const matchesCity = advancedFilters.city === 'ALL' || order.city === advancedFilters.city;
+      const matchesDate = !advancedFilters.date || (order.createdAt || '').slice(0, 10) === advancedFilters.date;
+
+      return matchesSearch && matchesStatus && matchesDriver && matchesPriority && matchesCity && matchesDate;
+    });
+
+    if (!sortConfig) return result;
+
+    return [...result].sort((a, b) => {
+      let comparison = 0;
+
+      if (sortConfig.field === 'priority') {
+        comparison = (priorityRank[a.priority] ?? 0) - (priorityRank[b.priority] ?? 0);
+      } else if (sortConfig.field === 'status') {
+        comparison = (statusRank[a.status] ?? 0) - (statusRank[b.status] ?? 0);
+      } else if (sortConfig.field === 'createdAt') {
+        comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      } else {
+        comparison = String(a[sortConfig.field] ?? '').localeCompare(String(b[sortConfig.field] ?? ''), 'es', {
+          sensitivity: 'base',
+        });
+      }
+
+      return sortConfig.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [orders, searchTerm, filterStatus, driverFilter, advancedFilters, sortConfig]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds([]);
+  }, [searchTerm, filterStatus, driverFilter, advancedFilters, sortConfig]);
+
+  const handleSort = (field: SortField) => {
+    setSortConfig(prev => {
+      if (!prev || prev.field !== field) return { field, direction: 'asc' };
+      return { field, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+    });
+  };
+
+  const SortableHeader = ({ field, children, className = '' }: { field: SortField; children: React.ReactNode; className?: string }) => {
+    const isActive = sortConfig?.field === field;
+    const SortIcon = sortConfig?.direction === 'asc' ? ArrowUp : ArrowDown;
+
+    return (
+      <button
+        type="button"
+        onClick={() => handleSort(field)}
+        className={`inline-flex items-center gap-1.5 text-left text-[10px] font-black uppercase tracking-widest transition-colors hover:text-slate-700 ${
+          isActive ? 'text-slate-900' : 'text-slate-400'
+        } ${className}`}
+      >
+        {children}
+        {isActive && <SortIcon size={12} />}
+      </button>
+    );
+  };
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / rowsPerPage));
   const pageStartIndex = (currentPage - 1) * rowsPerPage;
@@ -261,91 +384,178 @@ export const OrdersManagementModule: React.FC<{
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col xl:flex-row gap-4 items-stretch xl:items-center justify-between">
-        <div className="flex w-full xl:flex-1 gap-4 flex-col md:flex-row">
-           <div className="relative flex-1 max-w-xl group">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-500 transition-colors" size={18} />
-             <input 
-               type="text"
-               placeholder="Buscar referencia o cliente..."
-               className="w-full rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 pl-11 pr-4 py-3 text-sm transition-all duration-200"
-               value={searchTerm}
-               onChange={(e) => setSearchTerm(e.target.value)}
-             />
-           </div>
-           
-           {!driverName && availableDrivers.length > 0 && (
-             <div className="relative w-full md:w-64">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <select
-                  value={driverFilter}
-                  onChange={(e) => setDriverFilter(e.target.value)}
-                  className="w-full pl-12 pr-6 py-3 rounded-xl border border-slate-200 bg-white shadow-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-all duration-200 appearance-none text-sm font-medium cursor-pointer"
-                >
-                   <option value="ALL">Todos los repartidores</option>
-                   {availableDrivers.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-             </div>
-           )}
-        </div>
+      <div className="rounded-[2rem] border border-slate-100 bg-white/80 p-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="relative w-full max-w-xl group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={19} />
+            <input
+              type="text"
+              placeholder="Buscar por ID, referencia, cliente, destino, conductor, prioridad, estado, ciudad o lote..."
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-medium text-slate-800 shadow-sm outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-        <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-hide items-center">
-          {/* Regional Report Button */}
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsAdvancedFiltersOpen(prev => !prev)}
+                className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-sm transition-all sm:w-auto ${
+                  isAdvancedFiltersOpen || hasActiveFilters
+                    ? 'bg-slate-900 text-white hover:bg-slate-800'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <SlidersHorizontal size={17} />
+                Filtros Avanzados
+              </button>
+
+              <AnimatePresence>
+                {isAdvancedFiltersOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute right-0 top-14 z-30 w-[min(92vw,420px)] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-200/70"
+                  >
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-black text-slate-900">Filtros de operación</p>
+                        <p className="text-xs font-medium text-slate-400">Combina criterios sin consultar de nuevo el backend.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsAdvancedFiltersOpen(false)}
+                        className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prioridad</span>
+                        <select
+                          value={advancedFilters.priority}
+                          onChange={(e) => setAdvancedFilters(prev => ({ ...prev, priority: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="ALL">Todas</option>
+                          <option value="HIGH">Alta</option>
+                          <option value="MEDIUM">Media</option>
+                          <option value="LOW">Baja</option>
+                        </select>
+                      </label>
+
+                      <label className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</span>
+                        <select
+                          value={advancedFilters.status}
+                          onChange={(e) => {
+                            setAdvancedFilters(prev => ({ ...prev, status: e.target.value }));
+                            setFilterStatus(e.target.value);
+                          }}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="ALL">Todos</option>
+                          <option value="PENDING">Pendiente</option>
+                          <option value="ON_ROUTE">En ruta</option>
+                          <option value="DELIVERED">Entregado</option>
+                          <option value="CANCELLED">Cancelado</option>
+                          <option value="RETURNED">Devuelto</option>
+                        </select>
+                      </label>
+
+                      {!driverName && (
+                        <label className="space-y-1">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Conductor</span>
+                          <select
+                            value={advancedFilters.driver}
+                            onChange={(e) => {
+                              setAdvancedFilters(prev => ({ ...prev, driver: e.target.value }));
+                              setDriverFilter(e.target.value);
+                            }}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="ALL">Todos los repartidores</option>
+                            {availableDrivers.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </label>
+                      )}
+
+                      <label className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ciudad</span>
+                        <select
+                          value={advancedFilters.city}
+                          onChange={(e) => setAdvancedFilters(prev => ({ ...prev, city: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="ALL">Todas las ciudades</option>
+                          {uniqueCities.map(city => <option key={city} value={city}>{city}</option>)}
+                        </select>
+                      </label>
+
+                      <label className="space-y-1 sm:col-span-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fecha</span>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input
+                            type="date"
+                            value={advancedFilters.date}
+                            onChange={(e) => setAdvancedFilters(prev => ({ ...prev, date: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                      <p className="text-xs font-bold text-slate-400">{filteredOrders.length} resultados visibles</p>
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600 transition-all hover:bg-slate-200"
+                      >
+                        Limpiar filtros
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
           {!driverName && (
             <button 
                onClick={handleDownloadRegionalReport}
                disabled={isDownloading}
-               className="px-5 py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all duration-200 shadow-md shadow-emerald-200/50 flex items-center gap-3 disabled:opacity-50 whitespace-nowrap"
+               className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white shadow-md shadow-emerald-200/50 transition-all duration-200 hover:bg-emerald-700 disabled:opacity-50 sm:w-auto whitespace-nowrap"
             >
                {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}
                Exportar Excel Regional
             </button>
           )}
 
-          {/* Bulk Delete Button */}
           {!driverName && selectedIds.length > 0 && (
             <button
               onClick={handleBulkDelete}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition-all duration-200 shadow-md shadow-red-100 animate-in fade-in zoom-in"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-semibold text-white shadow-md shadow-red-100 transition-all duration-200 hover:bg-red-600"
             >
               <Trash2 size={14} />
               Borrar {selectedIds.length}
             </button>
           )}
-
-          <div className="h-10 w-px bg-slate-100 mx-2 hidden md:block" />
-
-          {['ALL', 'PENDING', 'ON_ROUTE', 'DELIVERED'].map((s) => (
-            <button
-              key={s}
-              onClick={() => { setFilterStatus(s); setCurrentPage(1); }}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
-                filterStatus === s 
-                  ? 'bg-slate-900 text-white shadow-md' 
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              {s === 'ALL' ? 'TODOS' : statusMap[s]?.label || s}
-            </button>
-          ))}
-
-          {/* Limpiar Filtros - solo visible cuando hay filtros activos */}
-          {(filterStatus !== 'ALL' || driverFilter !== 'ALL' || searchTerm.trim()) && (
-            <button
-              onClick={handleClearFilters}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl px-4 py-2 text-sm font-bold transition-all"
-            >
-              Limpiar Filtros
-            </button>
-          )}
+          </div>
         </div>
       </div>
 
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50">
+            <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur">
+              <tr className="border-b border-slate-100">
                 {!driverName && (
                   <th className="px-4 py-3 w-10">
                     <input 
@@ -357,20 +567,31 @@ export const OrdersManagementModule: React.FC<{
                   </th>
                 )}
                 <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pedido</th>
-                <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destino Operativo</th>
+                <th className="px-4 py-3">
+                  <SortableHeader field="createdAt">Fecha</SortableHeader>
+                </th>
+                <th className="px-4 py-3">
+                  <SortableHeader field="address">Destino Operativo</SortableHeader>
+                </th>
                 {!driverName && (
-                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Conductor</th>
+                  <th className="px-4 py-3">
+                    <SortableHeader field="driverName">Conductor</SortableHeader>
+                  </th>
                 )}
-                <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Prioridad</th>
-                <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado</th>
+                <th className="px-4 py-3 text-center">
+                  <SortableHeader field="priority" className="justify-center">Prioridad</SortableHeader>
+                </th>
+                <th className="px-4 py-3 text-center">
+                  <SortableHeader field="status" className="justify-center">Estado</SortableHeader>
+                </th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
-                <tr><td colSpan={driverName ? 5 : 7} className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Cargando operaciones...</td></tr>
+                <tr><td colSpan={driverName ? 6 : 8} className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Cargando operaciones...</td></tr>
               ) : filteredOrders.length === 0 ? (
-                <tr><td colSpan={driverName ? 5 : 7} className="p-32 text-center">
+                <tr><td colSpan={driverName ? 6 : 8} className="p-32 text-center">
                   <Package className="mx-auto text-slate-200 mb-2" size={48} />
                   <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sin registros encontrados</p>
                 </td></tr>
@@ -403,6 +624,14 @@ export const OrdersManagementModule: React.FC<{
                             <p className="font-black text-slate-900 tracking-tighter text-sm italic">{order.clientReference}</p>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Recibido: 08:30 AM</p>
                          </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Calendar size={13} className="text-slate-300" />
+                        <span className="text-xs font-bold whitespace-nowrap">
+                          {order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-CO') : 'Sin fecha'}
+                        </span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
