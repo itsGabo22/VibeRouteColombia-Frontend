@@ -81,19 +81,19 @@ export const AdminDashboardPage: React.FC = () => {
               </h1>
            </div>
 
-           <nav className="space-y-1">
+           <nav className="space-y-1 w-full">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as AdminTab)}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                  className={`w-full flex items-center justify-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                     activeTab === item.id 
                     ? 'bg-white/10 text-emerald-400 border-l-4 border-emerald-400' 
                     : 'text-teal-300 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <item.icon size={18} />
-                  {item.label}
+                  <item.icon size={18} className="shrink-0" />
+                  <span className="whitespace-nowrap">{item.label}</span>
                 </button>
               ))}
            </nav>
