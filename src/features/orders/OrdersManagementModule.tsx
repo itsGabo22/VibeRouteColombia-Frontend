@@ -201,6 +201,8 @@ export const OrdersManagementModule: React.FC<{
     setFilterStatus('ALL');
     setDriverFilter('ALL');
     setCurrentPage(1);
+    setSelectedIds([]);
+    fetchOrders();
   };
 
   const toggleSelectAll = () => {
@@ -316,9 +318,8 @@ export const OrdersManagementModule: React.FC<{
           {(filterStatus !== 'ALL' || driverFilter !== 'ALL' || searchTerm.trim()) && (
             <button
               onClick={handleClearFilters}
-              className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-rose-50 to-orange-50 text-rose-500 hover:from-rose-100 hover:to-orange-100 border border-rose-100 transition-all whitespace-nowrap shadow-sm hover:shadow-md flex items-center gap-2"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl px-4 py-2 text-sm font-bold transition-all"
             >
-              <X size={14} />
               Limpiar Filtros
             </button>
           )}
