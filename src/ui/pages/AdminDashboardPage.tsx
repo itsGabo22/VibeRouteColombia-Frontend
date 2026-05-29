@@ -70,14 +70,14 @@ export const AdminDashboardPage: React.FC = () => {
       
       {/* Sidebar Style Fleet Management */}
       <aside className="w-72 bg-teal-900 text-white flex flex-col fixed h-full z-40">
-        <div className="p-8">
-           <div className="flex items-center gap-3 mb-10">
-              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+        <div className="p-8 flex flex-col items-center">
+           <div className="flex flex-col items-center justify-center gap-3 mb-10 w-full text-center">
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
                  <Truck size={22} className="text-white" />
               </div>
               <h1 className="text-xl font-black tracking-tighter uppercase italic leading-none">
-                Fleet<span className="text-emerald-400">Manage</span> <br/>
-                <span className="text-[10px] text-teal-400 tracking-[0.3em] font-bold">VibeRoute Colombia</span>
+                Fleet<span className="text-emerald-400">Manage</span>
+                <span className="block text-[10px] text-teal-400 tracking-[0.3em] font-bold mt-1">VibeRoute Colombia</span>
               </h1>
            </div>
 
