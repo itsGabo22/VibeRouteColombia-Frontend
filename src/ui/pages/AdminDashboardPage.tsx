@@ -69,31 +69,31 @@ export const AdminDashboardPage: React.FC = () => {
     <div className="min-h-screen bg-[#F0FDFA] flex font-sans">
       
       {/* Sidebar Style Fleet Management */}
-      <aside className="w-72 bg-teal-900 text-white flex flex-col fixed h-full z-40">
-        <div className="p-8">
-           <div className="flex items-center gap-3 mb-10">
-              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+      <aside className="w-64 lg:w-72 bg-teal-900 text-white flex flex-col fixed h-full z-40 overflow-x-hidden">
+        <div className="p-8 flex flex-col items-center">
+           <div className="flex flex-col items-center justify-center gap-3 mb-10 w-full text-center">
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
                  <Truck size={22} className="text-white" />
               </div>
               <h1 className="text-xl font-black tracking-tighter uppercase italic leading-none">
-                Fleet<span className="text-emerald-400">Manage</span> <br/>
-                <span className="text-[10px] text-teal-400 tracking-[0.3em] font-bold">VibeRoute Colombia</span>
+                Fleet<span className="text-emerald-400">Manage</span>
+                <span className="block text-[10px] text-teal-400 tracking-[0.3em] font-bold mt-1">VibeRoute Colombia</span>
               </h1>
            </div>
 
-           <nav className="space-y-1">
+           <nav className="space-y-1 w-full">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as AdminTab)}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                  className={`w-full max-w-[calc(100%-0.5rem)] mx-auto flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl text-[10px] lg:text-xs font-black uppercase tracking-wide lg:tracking-widest transition-all ${
                     activeTab === item.id 
-                    ? 'bg-white/10 text-emerald-400 border-l-4 border-emerald-400' 
+                    ? 'bg-white/10 text-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.2)] ring-1 ring-emerald-400/35' 
                     : 'text-teal-300 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <item.icon size={18} />
-                  {item.label}
+                  <item.icon size={18} className="shrink-0" />
+                  <span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0">{item.label}</span>
                 </button>
               ))}
            </nav>
@@ -118,7 +118,7 @@ export const AdminDashboardPage: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-72 p-10 min-h-screen">
+      <main className="flex-1 ml-64 lg:ml-72 p-10 min-h-screen">
         
         {/* Fleet Header */}
         <header className="flex justify-between items-center mb-10">

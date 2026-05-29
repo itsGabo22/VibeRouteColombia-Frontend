@@ -5,7 +5,6 @@ import { Mail, Lock, LogIn, Loader2, ShieldCheck, AlertCircle, Phone, } from 'lu
 import { useAuthStore } from '../../app/store/authStore';
 import api from '../../shared/lib/api';
 import { IconPasswordHidden, IconPasswordVisible } from '../../shared/components/password/PasswordVisibilityIcons';
-import { PasswordCriteriaChecklist } from '../../shared/components/password/PasswordCriteriaChecklist';
 
 interface VibeRouteLogoProps {
   className?: string;
@@ -107,6 +106,11 @@ export const LoginPage: React.FC = () => {
 
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
+
+  const isLoginPasswordValid = password.length >= 8;
+  const isNewPasswordValid = newPassword.length >= 8;
+  const isSubmitDisabled =
+    isLoading || (isResetMode ? !isNewPasswordValid : !isLoginPasswordValid);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -282,10 +286,22 @@ export const LoginPage: React.FC = () => {
                       autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
-                      placeholder="Mínimo 8 caracteres"
+                      className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-36 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
+                      placeholder="••••••••"
                       required
                     />
+                    <span
+                      className={`pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide transition-colors sm:right-14 sm:text-[11px] ${
+                        newPassword.length === 0
+                          ? 'text-slate-500'
+                          : isNewPasswordValid
+                            ? 'text-green-400/80'
+                            : 'text-amber-400/80'
+                      }`}
+                      aria-live="polite"
+                    >
+                      Mínimo 8 caracteres
+                    </span>
                     <button
                       type="button"
                       onClick={() => setShowNewPassword((prev) => !prev)}
@@ -299,7 +315,6 @@ export const LoginPage: React.FC = () => {
                       )}
                     </button>
                   </div>
-                  <PasswordCriteriaChecklist visible={newPassword.length > 0} value={newPassword} />
                 </div>
               </>
             )}
@@ -314,10 +329,22 @@ export const LoginPage: React.FC = () => {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
+                    className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-36 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
                     placeholder="••••••••"
                     required
                   />
+                  <span
+                    className={`pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide transition-colors sm:right-14 sm:text-[11px] ${
+                      password.length === 0
+                        ? 'text-slate-500'
+                        : isLoginPasswordValid
+                          ? 'text-green-400/80'
+                          : 'text-amber-400/80'
+                    }`}
+                    aria-live="polite"
+                  >
+                    Mínimo 8 caracteres
+                  </span>
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
@@ -331,7 +358,6 @@ export const LoginPage: React.FC = () => {
                     )}
                   </button>
                 </div>
-                <PasswordCriteriaChecklist visible={password.length > 0} value={password} />
               </div>
             )}
 
@@ -351,8 +377,8 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 mt-4"
+              disabled={isSubmitDisabled}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:from-green-500 disabled:hover:to-emerald-600 disabled:active:scale-100 mt-4"
             >
               {isLoading ? (
                 <Loader2 className="animate-spin" size={20} />

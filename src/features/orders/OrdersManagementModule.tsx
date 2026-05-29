@@ -39,7 +39,7 @@ export const OrdersManagementModule: React.FC<{
   // Selection & Pagination
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const ordersPerPage = 5;
+  const [rowsPerPage, setRowsPerPage] = useState<30 | 60 | 100>(30);
 
   // Modals
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -229,6 +229,11 @@ export const OrdersManagementModule: React.FC<{
     return matchesSearch && matchesFilter && matchesDriver;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / rowsPerPage));
+  const pageStartIndex = (currentPage - 1) * rowsPerPage;
+  const pageEndIndex = Math.min(pageStartIndex + rowsPerPage, filteredOrders.length);
+  const paginatedOrders = filteredOrders.slice(pageStartIndex, pageEndIndex);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
@@ -335,9 +340,7 @@ export const OrdersManagementModule: React.FC<{
                   <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sin registros encontrados</p>
                 </td></tr>
               ) : (
-                filteredOrders
-                  .slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage)
-                  .map((order) => (
+                paginatedOrders.map((order) => (
                   <motion.tr 
                     layout
                     initial={{ opacity: 0 }}
@@ -412,11 +415,29 @@ export const OrdersManagementModule: React.FC<{
         </div>
         
         {/* Pagination Controls */}
-        {!loading && filteredOrders.length > ordersPerPage && (
+        {!loading && filteredOrders.length > 0 && (
           <div className="px-8 py-4 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Mostrando {Math.min(filteredOrders.length, currentPage * ordersPerPage)} de {filteredOrders.length}
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Mostrando {filteredOrders.length === 0 ? 0 : pageStartIndex + 1}-{pageEndIndex} de {filteredOrders.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Por página</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    setRowsPerPage(Number(e.target.value) as 30 | 60 | 100);
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Registros por página"
+                  className="px-3 py-2 bg-white border border-slate-100 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest appearance-none cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                >
+                  <option value="30">30</option>
+                  <option value="60">60</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+            </div>
             <div className="flex gap-2">
               <button
                 disabled={currentPage === 1}
@@ -426,10 +447,10 @@ export const OrdersManagementModule: React.FC<{
                 <ChevronLeft size={16} />
               </button>
               <div className="flex items-center px-4 bg-white border border-slate-100 rounded-xl text-[10px] font-black text-slate-600">
-                {currentPage} / {Math.ceil(filteredOrders.length / ordersPerPage)}
+                {Math.min(currentPage, totalPages)} / {totalPages}
               </div>
               <button
-                disabled={currentPage >= Math.ceil(filteredOrders.length / ordersPerPage)}
+                disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage(prev => prev + 1)}
                 className="p-2 rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-slate-900 disabled:opacity-30 transition-all shadow-sm"
               >
