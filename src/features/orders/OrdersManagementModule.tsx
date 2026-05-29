@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, MapPin, User, Package, Clock, 
   CheckCircle2, XCircle, ChevronRight, Navigation, Loader2,
@@ -21,6 +21,10 @@ interface Order {
   createdAt?: string;
   nonDeliveryReason?: string;
   driverName?: string;
+  driverEmail?: string;
+  vehicle?: string;
+  vehiclePlate?: string;
+  batchName?: string;
   batchId?: number | string | null;
 }
 
@@ -48,6 +52,7 @@ export const OrdersManagementModule: React.FC<{
   const [driverFilter, setDriverFilter] = useState<string>('ALL');
   const [availableDrivers, setAvailableDrivers] = useState<string[]>([]);
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
+  const filtersRef = useRef<HTMLDivElement | null>(null);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     priority: 'ALL',
     status: 'ALL',
@@ -78,6 +83,23 @@ export const OrdersManagementModule: React.FC<{
     fetchOrders();
     if (searchQuery) setSearchTerm(searchQuery);
   }, [driverName, forceCity, searchQuery]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        filtersRef.current &&
+        !filtersRef.current.contains(event.target as Node)
+      ) {
+        setIsAdvancedFiltersOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const fetchOrders = async () => {
     try {
@@ -194,26 +216,73 @@ export const OrdersManagementModule: React.FC<{
     
     try {
       setIsDownloading(true);
-      // Evitamos el cache del navegador añadiendo un timestamp y limpiando el nombre
       const cleanCity = (activeCity || '').trim();
-      const params = new URLSearchParams();
-      params.append('t', String(new Date().getTime()));
-      if (cleanCity) params.append('city', cleanCity);
-      if (filterStatus && filterStatus !== 'ALL') params.append('status', filterStatus);
-      if (driverFilter && driverFilter !== 'ALL') params.append('driver', driverFilter);
-      if (searchTerm && searchTerm.trim()) params.append('search', searchTerm.trim());
-      
-      const url = `/reports/generate-excel?${params.toString()}`;
-      
-      const response = await api.get(url, { responseType: 'blob' });
-      
-      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const escapeCell = (value: unknown) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+      const rows = filteredOrders.map(order => ({
+        id: order.id,
+        reference: order.clientReference,
+        client: order.clientName,
+        address: order.address,
+        city: order.city,
+        driver: order.driverName,
+        priority: priorityMap[order.priority]?.label || order.priority,
+        status: statusMap[order.status]?.label || order.status,
+        batch: order.batchName || order.batchId || '',
+        createdAt: order.createdAt ? new Date(order.createdAt).toLocaleString('es-CO') : '',
+      }));
+
+      const tableHtml = `
+        <html>
+          <head><meta charset="UTF-8" /></head>
+          <body>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Referencia</th>
+                  <th>Cliente</th>
+                  <th>Destino</th>
+                  <th>Ciudad</th>
+                  <th>Conductor</th>
+                  <th>Prioridad</th>
+                  <th>Estado</th>
+                  <th>Lote</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(row => `
+                  <tr>
+                    <td>${escapeCell(row.id)}</td>
+                    <td>${escapeCell(row.reference)}</td>
+                    <td>${escapeCell(row.client)}</td>
+                    <td>${escapeCell(row.address)}</td>
+                    <td>${escapeCell(row.city)}</td>
+                    <td>${escapeCell(row.driver)}</td>
+                    <td>${escapeCell(row.priority)}</td>
+                    <td>${escapeCell(row.status)}</td>
+                    <td>${escapeCell(row.batch)}</td>
+                    <td>${escapeCell(row.createdAt)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+
+      const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
       
       // Aseguramos que el nombre del archivo refleje la ciudad REAL
-      const fileName = cleanCity ? `Lista_Pedidos_${cleanCity}.xlsx` : 'Reporte_Pedidos.xlsx';
+      const fileName = cleanCity ? `Lista_Pedidos_${cleanCity}_Filtrado.xls` : 'Reporte_Pedidos_Filtrado.xls';
       link.setAttribute('download', fileName);
       
       document.body.appendChild(link);
@@ -302,11 +371,15 @@ export const OrdersManagementModule: React.FC<{
         order.clientName,
         order.address,
         order.driverName,
+        order.driverEmail,
+        order.vehicle,
+        order.vehiclePlate,
         priorityMap[order.priority]?.label,
         order.priority,
         statusMap[order.status]?.label,
         order.status,
         order.city,
+        order.batchName,
         order.batchId,
       ];
 
@@ -398,7 +471,7 @@ export const OrdersManagementModule: React.FC<{
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
-            <div className="relative">
+            <div ref={filtersRef} className="relative">
               <button
                 type="button"
                 onClick={() => setIsAdvancedFiltersOpen(prev => !prev)}
@@ -419,20 +492,21 @@ export const OrdersManagementModule: React.FC<{
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.98 }}
                     transition={{ duration: 0.18 }}
-                    className="absolute right-0 top-14 z-30 w-[min(92vw,420px)] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-200/70"
+                    className="absolute right-0 top-full z-50 mt-3 max-h-[70vh] w-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-2xl shadow-slate-200/70 backdrop-blur-md transition-all duration-200 animate-in fade-in zoom-in-95 sm:w-[420px]"
                   >
+                    <button
+                      type="button"
+                      onClick={() => setIsAdvancedFiltersOpen(false)}
+                      className="absolute top-3 right-3 text-slate-400 hover:text-slate-700 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <p className="text-sm font-black text-slate-900">Filtros de operación</p>
                         <p className="text-xs font-medium text-slate-400">Combina criterios sin consultar de nuevo el backend.</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsAdvancedFiltersOpen(false)}
-                        className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                      >
-                        <X size={16} />
-                      </button>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
