@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, OverlayViewF, OverlayView } from '@react-google-maps/api';
-import { Loader2, Navigation, Clock, MapPin, Box, Target, Sun, Moon, Phone, User } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, MarkerF, OverlayViewF, OverlayView } from '@react-google-maps/api';
+import { Loader2, Navigation, Clock, MapPin, Box, Target, Sun, Moon, Phone, User, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
 import { useMissionStore } from '../../app/store/missionStore';
@@ -9,6 +9,7 @@ import { useRouteStore } from '../../app/store/routeStore';
 const containerStyle = { width: '100%', height: '100%' };
 const LIBRARIES: ("geometry" | "drawing" | "places" | "visualization")[] = ["geometry"];
 const COMPLETED_STATUSES = new Set(['DELIVERED', 'RETURNED', 'CANCELLED']);
+const GPS_ICON_SIZE = 24;
 
 type MapStop = {
   id?: number;
@@ -127,7 +128,7 @@ export const MapsNavigationModule: React.FC = () => {
         destination: stops[stops.length - 1].location,
         waypoints: stops.slice(0, -1),
         travelMode: google.maps.TravelMode.DRIVING,
-        optimizeWaypoints: false,
+        optimizeWaypoints: true,
       }, (res, status) => {
         if (reqId === lastRequestId.current && status === 'OK' && res) {
           const leg1 = res.routes[0].legs[0];
@@ -395,24 +396,6 @@ export const MapsNavigationModule: React.FC = () => {
           />
         ))}
 
-        {selectedOrder && (
-          <InfoWindowF position={{ lat: selectedOrder.lat, lng: selectedOrder.lng }} onCloseClick={() => setSelectedOrder(null)}>
-            <div className="p-4 min-w-[240px] bg-white rounded-2xl shadow-xl">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${selectedOrder.priority === 'HIGH' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
-                    {selectedOrder.priority === 'HIGH' ? 'Prioridad Alta' : 'Estándar'}
-                </div>
-                <span className="text-[10px] font-bold text-slate-400">#{selectedOrder.id?.toString().slice(-4)}</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3"><User className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Cliente</p><p className="text-sm font-black text-slate-900">{(selectedOrder.clientName && selectedOrder.clientName !== 'Cliente VibeRoute' && selectedOrder.clientName !== 'Cliente Viberoute') ? selectedOrder.clientName : (selectedOrder.clientReference || 'Sin nombre')}</p>{selectedOrder.clientReference && selectedOrder.clientName && selectedOrder.clientName !== 'Cliente VibeRoute' && selectedOrder.clientName !== 'Cliente Viberoute' && <p className="text-[10px] text-slate-400 font-semibold">Ref: {selectedOrder.clientReference}</p>}</div></div>
-                <div className="flex items-start gap-3"><MapPin className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Entrega en</p><p className="text-[11px] font-bold text-slate-600 leading-tight">{selectedOrder.address}</p></div></div>
-                <div className="flex items-start gap-3"><Phone className="w-4 h-4 text-emerald-500 mt-0.5" /><div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Contacto</p><a href={`tel:${selectedOrder.phone || '3000000000'}`} className="text-[11px] font-black text-emerald-600 underline decoration-emerald-200">{selectedOrder.phone || 'Llamar al cliente'}</a></div></div>
-              </div>
-            </div>
-          </InfoWindowF>
-        )}
-
         {driverPos && (
           <>
             <OverlayViewF
@@ -433,13 +416,89 @@ export const MapsNavigationModule: React.FC = () => {
                 strokeColor: '#fff',
                 strokeWeight: 2,
                 scale: isMobile ? 1.35 : 1.5,
-                anchor: new google.maps.Point(12, 12),
+                anchor: new google.maps.Point(GPS_ICON_SIZE / 2, GPS_ICON_SIZE / 2),
                 rotation: deviceHeading,
               }}
             />
           </>
         )}
       </GoogleMap>
+
+      <AnimatePresence>
+        {selectedOrder && (
+          <motion.div
+            key={`map-order-card-${selectedOrder.id ?? selectedOrder.clientReference ?? 'selected'}`}
+            initial={{ opacity: 0, y: 20, x: '-50%', scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, x: '-50%', scale: 1 }}
+            exit={{ opacity: 0, y: 16, x: '-50%', scale: 0.98 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white rounded-2xl shadow-2xl z-40 p-4 backdrop-blur-md border border-slate-100 pointer-events-auto touch-manipulation"
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedOrder(null)}
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-all active:scale-95"
+              aria-label="Cerrar detalle de pedido"
+            >
+              <X size={17} />
+            </button>
+
+            <div className="pr-10">
+              <div className="mb-3 flex items-center gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${selectedOrder.status === 'ON_ROUTE' ? 'bg-blue-100 text-blue-700' : selectedOrder.status === 'DELIVERED' ? 'bg-emerald-100 text-emerald-700' : selectedOrder.status === 'CANCELLED' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                  {selectedOrder.status || 'Pendiente'}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${selectedOrder.priority === 'HIGH' ? 'bg-red-100 text-red-700' : selectedOrder.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                  {selectedOrder.priority === 'HIGH' ? 'Alta' : selectedOrder.priority === 'MEDIUM' ? 'Media' : 'Baja'}
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <User className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Cliente</p>
+                    <p className="truncate text-sm font-black text-slate-900">
+                      {(selectedOrder.clientName && selectedOrder.clientName !== 'Cliente VibeRoute' && selectedOrder.clientName !== 'Cliente Viberoute') ? selectedOrder.clientName : (selectedOrder.clientReference || 'Sin nombre')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Dirección</p>
+                    <p className="text-xs font-bold leading-snug text-slate-700">{selectedOrder.address}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <a
+                  href={`tel:${selectedOrder.phone || '3000000000'}`}
+                  className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 text-xs font-black text-slate-700 transition-all active:scale-95"
+                >
+                  <Phone size={15} />
+                  Llamar
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFollowing(true);
+                    if (mapRef.current && selectedOrder.lat && selectedOrder.lng) {
+                      mapRef.current.panTo({ lat: selectedOrder.lat, lng: selectedOrder.lng });
+                    }
+                  }}
+                  className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 text-xs font-black text-white shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                >
+                  <Navigation size={15} />
+                  Enfocar
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
 
       <div className="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 pointer-events-none w-full max-w-[calc(100%-7.5rem)]">

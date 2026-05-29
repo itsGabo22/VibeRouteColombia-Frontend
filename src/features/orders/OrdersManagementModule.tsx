@@ -886,7 +886,7 @@ export const OrdersManagementModule: React.FC<{
               </button>
 
               {/* Scrollable Content */}
-              <div className="p-8 sm:p-10 space-y-6 overflow-y-auto flex-1">
+              <div className="p-8 pb-32 sm:p-10 sm:pb-32 space-y-6 overflow-y-auto flex-1">
                 {/* Header */}
                 <div className="pr-10 space-y-2">
                   <div className="flex items-center gap-3 flex-wrap">
