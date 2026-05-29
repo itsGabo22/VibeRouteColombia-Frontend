@@ -2,12 +2,16 @@ import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 
 interface AssignmentToastProps {
-  message?: string;
+  isOpen: boolean;
+  message: string;
 }
 
 export const AssignmentToast: React.FC<AssignmentToastProps> = ({
-  message = 'Lote asignado correctamente al repartidor',
+  isOpen,
+  message,
 }) => {
+  if (!isOpen) return null;
+
   return (
     <div
       role="status"

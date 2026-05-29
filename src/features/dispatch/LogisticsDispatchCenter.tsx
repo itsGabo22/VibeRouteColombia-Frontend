@@ -30,6 +30,7 @@ interface Driver {
 
 import { SmartDispatchModal } from './SmartDispatchModal';
 import { useWebSocket } from '../../infrastructure/websocket/useWebSocket';
+import { AssignmentToast } from '../../ui/components/AssignmentToast';
 
 export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: string }> = ({ city, searchQuery = '' }) => {
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -38,6 +39,8 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
   const [loading, setLoading] = useState(true);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [assigning, setAssigning] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const fetchData = async () => {
     try {
@@ -74,8 +77,12 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
   const handleAssign = async (driverId: number) => {
     if (!selectedBatch) return;
     setAssigning(true);
+    const batchId = selectedBatch.id;
+    const driverName = drivers.find((d) => d.id === driverId)?.name ?? 'repartidor';
     try {
-      await api.post(`/batches/${selectedBatch.id}/assign-driver/${driverId}`);
+      await api.post(`/batches/${batchId}/assign-driver/${driverId}`);
+      setToastMessage(`Lote #${batchId} asignado correctamente al repartidor ${driverName}`);
+      setToastOpen(true);
       setSelectedBatch(null);
       fetchData();
     } catch (err) {
@@ -230,6 +237,7 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
         </div>
       </div>
 
+      <AssignmentToast isOpen={toastOpen} message={toastMessage} />
     </div>
   );
 };
