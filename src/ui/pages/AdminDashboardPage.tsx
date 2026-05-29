@@ -66,13 +66,13 @@ export const AdminDashboardPage: React.FC = () => {
   }, [isAdmin, isLogistica]);
 
   return (
-    <div className="min-h-screen bg-[#F0FDFA] flex font-sans">
+    <div className="min-h-screen bg-[#F0FDFA] flex font-sans overflow-x-hidden">
       
       {/* Sidebar Style Fleet Management */}
-      <aside className="w-64 lg:w-72 bg-teal-900 text-white flex flex-col fixed h-full z-40 overflow-x-hidden">
-        <div className="p-8 flex flex-col items-center">
-           <div className="flex flex-col items-center justify-center gap-3 mb-10 w-full text-center">
-              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
+      <aside className="hidden lg:flex w-72 bg-teal-900 text-white flex-col fixed h-full z-40">
+        <div className="p-8">
+           <div className="flex items-center gap-3 mb-10">
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
                  <Truck size={22} className="text-white" />
               </div>
               <h1 className="text-xl font-black tracking-tighter uppercase italic leading-none">
@@ -86,14 +86,14 @@ export const AdminDashboardPage: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as AdminTab)}
-                  className={`w-full max-w-[calc(100%-0.5rem)] mx-auto flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl text-[10px] lg:text-xs font-black uppercase tracking-wide lg:tracking-widest transition-all ${
+                  className={`w-full flex items-center justify-start text-left gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 ${
                     activeTab === item.id 
-                    ? 'bg-white/10 text-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.2)] ring-1 ring-emerald-400/35' 
-                    : 'text-teal-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-lg' 
+                    : 'text-teal-100 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
                   <item.icon size={18} className="shrink-0" />
-                  <span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0">{item.label}</span>
+                  <span className="leading-snug">{item.label}</span>
                 </button>
               ))}
            </nav>
@@ -108,7 +108,7 @@ export const AdminDashboardPage: React.FC = () => {
                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
                     {user?.role === 'ADMIN' ? 'Control Central' : `Operador ${user?.assignedCity || 'Logística'}`}
                  </p>
-                 <p className="text-xs font-bold text-white truncate max-w-[120px]">{user?.name}</p>
+                 <p className="text-xs font-bold text-white max-w-[160px] leading-snug">{user?.name}</p>
               </div>
            </div>
            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/5 hover:bg-rose-500/10 hover:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
@@ -118,10 +118,37 @@ export const AdminDashboardPage: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-64 lg:ml-72 p-10 min-h-screen">
+      <main className="flex-1 w-full lg:ml-72 p-4 sm:p-6 lg:p-10 min-h-screen min-w-0">
+        <div className="lg:hidden mb-6 rounded-[1.75rem] bg-teal-900 p-4 shadow-xl shadow-teal-900/10">
+          <div className="flex items-center gap-3 mb-4 text-white">
+            <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Truck size={22} />
+            </div>
+            <div>
+              <p className="text-sm font-black uppercase italic leading-none">Fleet<span className="text-emerald-400">Manage</span></p>
+              <p className="text-[10px] text-teal-300 font-bold uppercase tracking-[0.2em]">VibeRoute Colombia</p>
+            </div>
+          </div>
+          <nav className="flex gap-2 overflow-x-auto pb-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as AdminTab)}
+                className={`shrink-0 flex items-center justify-start text-left gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
+                  activeTab === item.id
+                    ? 'bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-lg'
+                    : 'bg-white/5 text-teal-100 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <item.icon size={16} className="shrink-0" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
         
         {/* Fleet Header */}
-        <header className="flex justify-between items-center mb-10">
+        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-10">
            <div className="relative">
               <div className="flex items-center gap-3 text-teal-600 mb-2">
                  <ShieldCheck size={14} />
@@ -132,7 +159,8 @@ export const AdminDashboardPage: React.FC = () => {
               </h2>
            </div>
 
-           <div className="flex items-center gap-4">
+           {activeTab !== 'orders' && (
+           <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="flex items-center gap-2 bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm">
                  <Search size={16} className="text-slate-400" />
                  <input 
@@ -145,6 +173,7 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
 
            </div>
+           )}
         </header>
 
         {/* Dynamic Navigation View */}
@@ -160,7 +189,7 @@ export const AdminDashboardPage: React.FC = () => {
 
               {activeTab === 'orders' && (
                 <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                   <OrdersManagementModule driverName="" forceCity={selectedCity} searchQuery={searchQuery} />
+                   <OrdersManagementModule driverName="" forceCity={selectedCity} searchQuery="" />
                 </div>
               )}
 
