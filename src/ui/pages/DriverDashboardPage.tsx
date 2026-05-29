@@ -37,24 +37,16 @@ export const DriverDashboardPage: React.FC = () => {
   const [nextOrder, setNextOrder] = useState<any>(null);
   const [copilotTips, setCopilotTips] = useState<string>('');
 
-  const fetchData = async () => {
+  const fetchData = async (options?: { preserveMission?: boolean }) => {
     try {
-      setLoading(true);
-      
-      // CRITICAL: Limpiar misión vieja para evitar datos de otro conductor
-      useMissionStore.getState().clearMission();
-      useRouteStore.getState().setBackupOrders([]);
-      useRouteStore.getState().setRoute(null);
+      if (!options?.preserveMission) {
+        setLoading(true);
+        useMissionStore.getState().clearMission();
+        useRouteStore.getState().setBackupOrders([]);
+        useRouteStore.getState().setRoute(null);
+      }
 
-      // Usar /orders (retorna DTOs seguros, sin lazy loading)
-      // El endpoint /orders enriquece cada pedido con driverName desde el batch
-      const { data: allOrdersFromApi } = await api.get('/orders');
-      
-      // Filtrar los pedidos de ESTE conductor por nombre
-      const driverDisplayName = user?.name || '';
-      const myOrders = allOrdersFromApi.filter((o: any) => 
-        o.driverName && o.driverName.toLowerCase() === driverDisplayName.toLowerCase()
-      );
+      const { data: myOrders } = await api.get('/orders/mine');
 
       if (myOrders.length > 0) {
         setOrders(myOrders);
@@ -161,8 +153,8 @@ export const DriverDashboardPage: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full relative ${view === 'map' ? 'h-full' : 'overflow-y-auto pb-32'}`}>
-        <div className={view === 'map' ? 'h-full w-full' : 'max-w-md mx-auto p-6 space-y-8'}>
+      <main className={`flex-1 min-h-0 w-full relative ${view === 'map' ? 'overflow-hidden' : 'overflow-y-auto pb-32'}`}>
+        <div className={view === 'map' ? 'absolute inset-0' : 'max-w-md mx-auto p-6 space-y-8'}>
           
           {/* User Welcome - Only in Summary View */}
           {view === 'summary' && (
@@ -255,25 +247,40 @@ export const DriverDashboardPage: React.FC = () => {
                  animate={{ opacity: 1, x: 0 }}
                  exit={{ opacity: 0, x: -20 }}
               >
-                 <OrdersManagementModule driverName={user?.name || ''} onUpdate={fetchData} />
+                 <OrdersManagementModule driverName={user?.name || ''} onUpdate={() => fetchData({ preserveMission: true })} />
               </motion.div>
             ) : (
-              <motion.div 
-                 key="map"
-                 initial={{ opacity: 0 }}
-                 animate={{ opacity: 1 }}
-                 exit={{ opacity: 0 }}
-                 className="h-full w-full absolute inset-0 z-0"
-              >
+              <div key="map" className="h-full w-full">
                  <MapsNavigationModule />
-              </motion.div>
+              </div>
             )}
           </AnimatePresence>
         </div>
       </main>
 
-      {/* Navigation Footer - Always visible and on top */}
-      <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100 p-3 shrink-0 z-40 fixed bottom-0 left-0 right-0">
+      {view === 'map' && (
+        <nav
+          className="fixed bottom-[max(6.5rem,env(safe-area-inset-bottom))] right-3 z-50 flex flex-col gap-2 pointer-events-none"
+          aria-label="Salir del mapa"
+        >
+          <button
+            type="button"
+            onClick={() => setView('summary')}
+            className="pointer-events-auto touch-manipulation min-h-[44px] px-4 rounded-2xl bg-white/95 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-xl border border-slate-200 active:scale-95"
+          >
+            Turno
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('list')}
+            className="pointer-events-auto touch-manipulation min-h-[44px] px-4 rounded-2xl bg-white/95 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-xl border border-slate-200 active:scale-95"
+          >
+            Pedidos
+          </button>
+        </nav>
+      )}
+
+      <footer className={`bg-white/90 backdrop-blur-md border-t border-slate-100 p-3 shrink-0 z-40 fixed bottom-0 left-0 right-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${view === 'map' ? 'hidden' : ''}`}>
         <div className="max-w-md mx-auto grid grid-cols-3 gap-2">
            <button 
              onClick={() => setView('summary')}

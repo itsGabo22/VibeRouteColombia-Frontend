@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../shared/lib/api';
+import { useRouteStore } from '../../app/store/routeStore';
 import { DestructiveActionModal } from '../../ui/components/DestructiveActionModal';
 
 interface Order {
@@ -59,22 +60,23 @@ export const OrdersManagementModule: React.FC<{
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const { data: allOrdersFromApi } = await api.get('/orders');
+      const endpoint = driverName ? '/orders/mine' : '/orders';
+      const { data: allOrdersFromApi } = await api.get(endpoint);
       
       let allOrders: Order[] = allOrdersFromApi.map((o: any) => ({
         ...o,
-        driverName: o.driverName || 'Sin Asignar'
+        driverName: o.driverName || driverName || 'Sin Asignar'
       }));
-
-      if (driverName) {
-        allOrders = allOrders.filter(o => o.driverName?.toLowerCase() === driverName?.toLowerCase());
-      }
       
       if (forceCity) {
         allOrders = allOrders.filter(o => o.city?.toLowerCase() === forceCity.toLowerCase());
       }
 
       setOrders(allOrders);
+
+      if (driverName) {
+        useRouteStore.getState().setBackupOrders(allOrdersFromApi);
+      }
       
       if (!driverName) {
          const drivers = Array.from(new Set(allOrders.map(o => o.driverName))).filter(Boolean) as string[];
@@ -104,6 +106,14 @@ export const OrdersManagementModule: React.FC<{
       setOrders((prev: Order[]) => prev.map(o => o.id === orderId ? { ...o, status: nextStatus as any, nonDeliveryReason: reason } : o));
       if (selectedOrder?.id === orderId) {
         setSelectedOrder((prev: Order | null) => prev ? { ...prev, status: nextStatus as any, nonDeliveryReason: reason } : null);
+      }
+      if (driverName) {
+        const { backupOrders, setBackupOrders } = useRouteStore.getState();
+        setBackupOrders(
+          backupOrders.map((o) =>
+            o.id === orderId ? { ...o, status: nextStatus, nonDeliveryReason: reason } : o
+          )
+        );
       }
       setIsNovedadOpen(false);
       setNovedadReason('');
