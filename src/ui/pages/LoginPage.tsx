@@ -108,6 +108,9 @@ export const LoginPage: React.FC = () => {
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
 
+  const isLoginPasswordValid = password.length >= 8;
+  const isNewPasswordValid = newPassword.length >= 8;
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -319,8 +322,14 @@ export const LoginPage: React.FC = () => {
                     required
                   />
                   <span
-                    className="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide text-slate-500 sm:right-14 sm:text-[11px]"
-                    aria-hidden
+                    className={`pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide transition-colors sm:right-14 sm:text-[11px] ${
+                      password.length === 0
+                        ? 'text-slate-500'
+                        : isLoginPasswordValid
+                          ? 'text-green-400/80'
+                          : 'text-amber-400/80'
+                    }`}
+                    aria-live="polite"
                   >
                     Mínimo 8 caracteres
                   </span>
