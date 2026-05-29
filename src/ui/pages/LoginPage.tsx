@@ -314,10 +314,16 @@ export const LoginPage: React.FC = () => {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
+                    className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-36 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
                     placeholder="••••••••"
                     required
                   />
+                  <span
+                    className="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide text-slate-500 sm:right-14 sm:text-[11px]"
+                    aria-hidden
+                  >
+                    Mínimo 8 caracteres
+                  </span>
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
