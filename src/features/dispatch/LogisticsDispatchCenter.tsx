@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Package, 
   UserPlus, 
@@ -41,6 +41,7 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
   const [assigning, setAssigning] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const handleCloseToast = useCallback(() => setToastOpen(false), []);
 
   const fetchData = async () => {
     try {
@@ -240,7 +241,7 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
       <AssignmentToast
         isOpen={toastOpen}
         message={toastMessage}
-        onClose={() => setToastOpen(false)}
+        onClose={handleCloseToast}
       />
     </div>
   );
