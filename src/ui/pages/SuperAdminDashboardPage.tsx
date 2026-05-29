@@ -1,17 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Terminal, 
-  Shield, 
   Activity, 
   Users, 
   Trash2, 
   Download, 
-  Database, 
   RefreshCcw,
   LogOut,
   AlertTriangle,
-  Cpu,
-  Unplug,
   UserPlus,
   X,
   Edit3,
@@ -51,7 +47,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [users, setUsers] = useState<GenericUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [uptime, setUptime] = useState('00:00:00');
   
   // Modal State
@@ -66,8 +61,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
   });
   const [isManagementOpen, setIsManagementOpen] = useState(false);
 
-  const logEndRef = useRef<HTMLDivElement>(null);
-
   const fetchData = async () => {
     try {
       const [logsRes, usersRes] = await Promise.all([
@@ -78,8 +71,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
       setUsers(usersRes.data);
     } catch (err) {
       console.error('Error fetching system data', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -161,9 +152,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
   const amber = {
     text: '#FFB000',
     bg: '#0D0A00',
-    border: 'rgba(255, 176, 0, 0.2)',
-    accent: 'rgba(255, 176, 0, 0.1)',
-    high: '#FFCC00'
   };
 
   return (
@@ -188,13 +176,6 @@ export const SuperAdminDashboardPage: React.FC = () => {
           <div className="px-6 py-3 border border-amber-500/30 rounded-xl bg-amber-500/5 flex flex-col items-center">
             <span className="text-[8px] uppercase tracking-widest opacity-50">Local Uptime</span>
             <span className="text-sm font-bold">{uptime}</span>
-          </div>
-          <div className="px-6 py-3 border border-amber-500/30 rounded-xl bg-amber-500/5 flex flex-col items-center">
-            <span className="text-[8px] uppercase tracking-widest opacity-50">Node Health</span>
-            <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-                <span className="text-sm font-bold text-emerald-500">OPERATIONAL</span>
-            </div>
           </div>
           <button onClick={handleLogout} className="flex items-center gap-2 px-6 py-3 bg-amber-500/10 hover:bg-rose-500 hover:text-black border border-amber-500/30 hover:border-transparent rounded-xl transition-all font-bold text-xs uppercase tracking-widest">
             <LogOut size={16} /> Disconnect
@@ -241,49 +222,8 @@ export const SuperAdminDashboardPage: React.FC = () => {
                   </div>
                 </div>
               ))}
-              <div ref={logEndRef} />
             </div>
           </section>
-
-          {/* SYSTEM HARDWARE STATUS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-             <div className="p-6 border border-amber-500/10 bg-amber-500/5 rounded-3xl flex items-center gap-6">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                  <Cpu size={24} className="opacity-50" />
-                </div>
-                <div className="flex-1">
-                   <p className="text-[10px] uppercase tracking-widest opacity-40">Processor Load</p>
-                   <div className="flex items-center gap-4">
-                      <div className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden">
-                        <motion.div 
-                          animate={{ width: ['12%', '45%', '33%'] }} 
-                          transition={{ repeat: Infinity, duration: 8 }}
-                          className="h-full bg-amber-500" 
-                        />
-                      </div>
-                      <span className="text-xs font-bold">12.5%</span>
-                   </div>
-                </div>
-             </div>
-             <div className="p-6 border border-amber-500/10 bg-amber-500/5 rounded-3xl flex items-center gap-6">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                  <Database size={24} className="opacity-50" />
-                </div>
-                <div className="flex-1">
-                   <p className="text-[10px] uppercase tracking-widest opacity-40">Thread Memory</p>
-                   <div className="flex items-center gap-4">
-                      <div className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden">
-                        <motion.div 
-                          animate={{ width: ['60%', '62%', '61%'] }} 
-                          transition={{ repeat: Infinity, duration: 15 }}
-                          className="h-full bg-amber-500" 
-                        />
-                      </div>
-                      <span className="text-xs font-bold">61%</span>
-                   </div>
-                </div>
-             </div>
-          </div>
         </div>
 
         {/* PANEL DERECHO: USER LIST */}

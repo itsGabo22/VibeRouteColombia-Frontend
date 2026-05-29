@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, LogIn, Loader2, ShieldCheck, AlertCircle, Phone } from 'lucide-react';
+import { Mail, Lock, LogIn, Loader2, ShieldCheck, AlertCircle, Phone, } from 'lucide-react';
 import { useAuthStore } from '../../app/store/authStore';
 import api from '../../shared/lib/api';
-
+import { IconPasswordHidden, IconPasswordVisible } from '../../shared/components/password/PasswordVisibilityIcons';
+import { PasswordCriteriaChecklist } from '../../shared/components/password/PasswordCriteriaChecklist';
 
 interface VibeRouteLogoProps {
   className?: string;
@@ -95,6 +96,8 @@ const VibeRouteLogo: React.FC<VibeRouteLogoProps> = ({ className = "w-full h-ful
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
@@ -272,17 +275,31 @@ export const LoginPage: React.FC = () => {
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Nueva Contraseña</label>
-                  <div className="relative group">
+                  <div className="relative group focus-within:ring-1 focus-within:ring-green-500/30 rounded-2xl">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-400 transition-colors" size={20} />
                     <input
-                      type="password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-6 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
+                      className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
                       placeholder="Mínimo 8 caracteres"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 active:scale-95 sm:right-3 sm:h-10 sm:w-10 sm:min-h-0 sm:min-w-0"
+                      aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showNewPassword ? (
+                        <IconPasswordVisible className="pointer-events-none" />
+                      ) : (
+                        <IconPasswordHidden className="pointer-events-none" />
+                      )}
+                    </button>
                   </div>
+                  <PasswordCriteriaChecklist visible={newPassword.length > 0} value={newPassword} />
                 </div>
               </>
             )}
@@ -290,24 +307,42 @@ export const LoginPage: React.FC = () => {
             {!isResetMode && (
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Contraseña</label>
-                <div className="relative group">
+                <div className="relative group focus-within:ring-1 focus-within:ring-green-500/30 rounded-2xl">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-400 transition-colors" size={20} />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-6 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
+                    className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
                     placeholder="••••••••"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-slate-500 transition-colors hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50 active:scale-95 sm:right-3 sm:h-10 sm:w-10 sm:min-h-0 sm:min-w-0"
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPassword ? (
+                      <IconPasswordVisible className="pointer-events-none" />
+                    ) : (
+                      <IconPasswordHidden className="pointer-events-none" />
+                    )}
+                  </button>
                 </div>
+                <PasswordCriteriaChecklist visible={password.length > 0} value={password} />
               </div>
             )}
 
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => setIsResetMode(!isResetMode)}
+                onClick={() => {
+                  setIsResetMode(!isResetMode);
+                  setShowPassword(false);
+                  setShowNewPassword(false);
+                }}
                 className="text-xs font-bold text-green-400 hover:text-green-300 transition-colors uppercase tracking-widest px-1"
               >
                 {isResetMode ? 'Volver al ingreso' : '¿Olvidaste tu contraseña?'}
