@@ -86,9 +86,9 @@ export const AdminDashboardPage: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as AdminTab)}
-                  className={`w-full flex items-center justify-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                  className={`w-full max-w-[calc(100%-0.5rem)] mx-auto flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                     activeTab === item.id 
-                    ? 'bg-white/10 text-emerald-400 border-l-4 border-emerald-400' 
+                    ? 'bg-white/10 text-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.2)] ring-1 ring-emerald-400/35' 
                     : 'text-teal-300 hover:text-white hover:bg-white/5'
                   }`}
                 >
