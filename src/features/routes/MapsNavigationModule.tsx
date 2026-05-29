@@ -10,6 +10,7 @@ const containerStyle = { width: '100%', height: '100%' };
 const LIBRARIES: ("geometry" | "drawing" | "places" | "visualization")[] = ["geometry"];
 const COMPLETED_STATUSES = new Set(['DELIVERED', 'RETURNED', 'CANCELLED']);
 const GPS_ICON_SIZE = 24;
+const ROUTE_RECALC_INTERVAL_MS = 4500;
 
 type MapStop = {
   id?: number;
@@ -34,7 +35,7 @@ const normalizeStop = (o: Record<string, unknown>): MapStop => ({
 });
 
 export const MapsNavigationModule: React.FC = () => {
-  const { currentBatchId } = useMissionStore();
+  const { currentBatchId, setActiveOrder } = useMissionStore();
   const route = useRouteStore((s) => s.route);
   const backupOrders = useRouteStore((s) => s.backupOrders);
   const driverPos = useRouteStore((s) => s.driverPos);
@@ -64,6 +65,8 @@ export const MapsNavigationModule: React.FC = () => {
   const isMapDraggingRef = useRef(false);
   const followPanFrameRef = useRef<number | null>(null);
   const routeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dynamicRouteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDirectionsSyncRef = useRef(0);
   const isMobile =
     typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
 
@@ -83,6 +86,96 @@ export const MapsNavigationModule: React.FC = () => {
     { "featureType": "road", "stylers": [{ "color": mapTheme === 'light' ? "#ffffff" : "#162c44" }] },
     { "featureType": "water", "stylers": [{ "color": mapTheme === 'light' ? "#cbd5e1" : "#050d14" }] }
   ], [mapTheme]);
+
+  const buildRemainingDirections = useCallback((
+    stopsToRoute: MapStop[],
+    origin: google.maps.LatLngLiteral,
+    targetMode: 'EFFICIENCY' | 'PRIORITY',
+    showOptimizing = false
+  ) => {
+    if (!currentBatchId || !driverPos || !isLoaded) {
+      setLoading(false);
+      return;
+    }
+
+    const validStops = stopsToRoute.filter(isActiveStop);
+    const immediateStop = validStops[0] ?? null;
+    setActiveOrder(immediateStop?.id ?? null);
+
+    if (validStops.length === 0 || !immediateStop) {
+      setActivePath([]);
+      setFuturePath([]);
+      setEtaInfo(null);
+      setOptimizing(false);
+      setLoading(false);
+      return;
+    }
+
+    const reqId = ++lastRequestId.current;
+    if (showOptimizing) setOptimizing(true);
+
+    const ds = new google.maps.DirectionsService();
+    const stopLocation = (stop: MapStop) => ({ lat: stop.lat, lng: stop.lng });
+    const pathFromLegs = (legs: google.maps.DirectionsLeg[]) =>
+      legs.flatMap((leg) => leg.steps.flatMap((step) => step.path.map((p) => ({ lat: p.lat(), lng: p.lng() }))));
+
+    const finish = () => {
+      if (reqId === lastRequestId.current) {
+        setOptimizing(false);
+        setLoading(false);
+      }
+    };
+
+    if (targetMode === 'EFFICIENCY' && validStops.length > 1) {
+      ds.route({
+        origin,
+        destination: stopLocation(immediateStop),
+        travelMode: google.maps.TravelMode.DRIVING,
+        optimizeWaypoints: false,
+      }, (firstRes, firstStatus) => {
+        if (reqId !== lastRequestId.current) return;
+        if (firstStatus !== 'OK' || !firstRes) {
+          finish();
+          return;
+        }
+
+        const firstLeg = firstRes.routes[0].legs[0];
+        setEtaInfo({ distance: firstLeg.distance?.text || '', duration: firstLeg.duration?.text || '' });
+        setActivePath(pathFromLegs([firstLeg]));
+
+        const remaining = validStops.slice(1);
+        ds.route({
+          origin: stopLocation(immediateStop),
+          destination: stopLocation(remaining[remaining.length - 1]),
+          waypoints: remaining.slice(0, -1).map((stop) => ({ location: stopLocation(stop), stopover: true })),
+          travelMode: google.maps.TravelMode.DRIVING,
+          optimizeWaypoints: true,
+        }, (futureRes, futureStatus) => {
+          if (reqId === lastRequestId.current && futureStatus === 'OK' && futureRes) {
+            setFuturePath(pathFromLegs(futureRes.routes[0].legs));
+          }
+          finish();
+        });
+      });
+      return;
+    }
+
+    ds.route({
+      origin,
+      destination: stopLocation(validStops[validStops.length - 1]),
+      waypoints: validStops.slice(0, -1).map((stop) => ({ location: stopLocation(stop), stopover: true })),
+      travelMode: google.maps.TravelMode.DRIVING,
+      optimizeWaypoints: false,
+    }, (res, status) => {
+      if (reqId === lastRequestId.current && status === 'OK' && res) {
+        const firstLeg = res.routes[0].legs[0];
+        setEtaInfo({ distance: firstLeg.distance?.text || '', duration: firstLeg.duration?.text || '' });
+        setActivePath(pathFromLegs([firstLeg]));
+        setFuturePath(pathFromLegs(res.routes[0].legs.slice(1)));
+      }
+      finish();
+    });
+  }, [currentBatchId, driverPos, isLoaded, setActiveOrder]);
 
   // DECLARACIÓN DE CALLBACKS (ANTES DE EFECTOS)
   const syncRoute = useCallback(async (targetMode: 'EFFICIENCY' | 'PRIORITY') => {
@@ -109,39 +202,8 @@ export const MapsNavigationModule: React.FC = () => {
       if (reqId !== lastRequestId.current) return;
       
       setRoute(optRoute);
-
-      const activeOrders = optRoute.stops.filter((s: { status?: string }) => isActiveStop(s));
-
-      if (activeOrders.length === 0) {
-        setOptimizing(false);
-        return;
-      }
-
-      const ds = new google.maps.DirectionsService();
-      const stops = activeOrders.map((s: any) => ({
-        location: { lat: Number(s.lat || s.location?.lat), lng: Number(s.lng || s.location?.lng) },
-        stopover: true
-      }));
-
-      ds.route({
-        origin: driverPos,
-        destination: stops[stops.length - 1].location,
-        waypoints: stops.slice(0, -1),
-        travelMode: google.maps.TravelMode.DRIVING,
-        optimizeWaypoints: true,
-      }, (res, status) => {
-        if (reqId === lastRequestId.current && status === 'OK' && res) {
-          const leg1 = res.routes[0].legs[0];
-          setEtaInfo({ distance: leg1.distance?.text || '', duration: leg1.duration?.text || '' });
-          setActivePath(leg1.steps.flatMap(s => s.path.map(p => ({ lat: p.lat(), lng: p.lng() }))));
-          
-          const future = res.routes[0].legs.slice(1).flatMap(leg => 
-            leg.steps.flatMap(step => step.path.map(p => ({ lat: p.lat(), lng: p.lng() })))
-          );
-          setFuturePath(future);
-        }
-      });
-
+      lastDirectionsSyncRef.current = 0;
+      return;
     } catch (e) {
       console.error("Error Sync:", e);
     } finally {
@@ -309,9 +371,25 @@ export const MapsNavigationModule: React.FC = () => {
   }, [activePath, futurePath, isMobile]);
 
   const allStops = useMemo((): MapStop[] => {
-    const raw: unknown[] = route?.stops ?? backupOrders ?? [];
+    const routeStops = Array.isArray(route?.stops) ? route.stops : [];
+    const routeById = new Map<number | string, MapStop>(
+      routeStops
+        .map((item: Record<string, unknown>) => normalizeStop(item))
+        .filter((stop: MapStop) => stop.id !== undefined)
+        .map((stop: MapStop) => [stop.id as number | string, stop])
+    );
+    const raw: unknown[] = backupOrders.length > 0 ? backupOrders : routeStops;
     return raw
-      .map((item) => normalizeStop(item as Record<string, unknown>))
+      .map((item) => {
+        const normalized = normalizeStop(item as Record<string, unknown>);
+        const routeStop = normalized.id !== undefined ? routeById.get(normalized.id) : undefined;
+        return {
+          ...routeStop,
+          ...normalized,
+          lat: Number.isNaN(normalized.lat) ? Number(routeStop?.lat) : normalized.lat,
+          lng: Number.isNaN(normalized.lng) ? Number(routeStop?.lng) : normalized.lng,
+        };
+      })
       .filter((stop: MapStop) => !Number.isNaN(stop.lat) && !Number.isNaN(stop.lng));
   }, [route, backupOrders]);
 
@@ -321,6 +399,52 @@ export const MapsNavigationModule: React.FC = () => {
   );
 
   const nextStop = activeStops[0] ?? null;
+
+  const activeStopsSignature = useMemo(
+    () => activeStops.map((stop) => `${stop.id ?? `${stop.lat},${stop.lng}`}:${stop.status ?? 'ACTIVE'}`).join('|'),
+    [activeStops]
+  );
+
+  useEffect(() => {
+    if (!isLoaded || !driverPos) return;
+    if (activeStops.length === 0) {
+      setActiveOrder(null);
+      setActivePath([]);
+      setFuturePath([]);
+      setEtaInfo(null);
+      setLoading(false);
+      return;
+    }
+
+    const now = Date.now();
+    const runImmediately = lastDirectionsSyncRef.current === 0;
+    const elapsed = now - lastDirectionsSyncRef.current;
+
+    if (dynamicRouteTimerRef.current) clearTimeout(dynamicRouteTimerRef.current);
+
+    const recalc = () => {
+      lastDirectionsSyncRef.current = Date.now();
+      buildRemainingDirections(activeStops, driverPos, optMode, runImmediately);
+    };
+
+    if (runImmediately || elapsed >= ROUTE_RECALC_INTERVAL_MS) {
+      recalc();
+    } else {
+      dynamicRouteTimerRef.current = setTimeout(recalc, ROUTE_RECALC_INTERVAL_MS - elapsed);
+    }
+
+    return () => {
+      if (dynamicRouteTimerRef.current) clearTimeout(dynamicRouteTimerRef.current);
+    };
+  }, [
+    activeStopsSignature,
+    buildRemainingDirections,
+    driverPos?.lat,
+    driverPos?.lng,
+    isLoaded,
+    optMode,
+    setActiveOrder,
+  ]);
 
   const fitAll = useCallback(() => {
     if (!mapRef.current || activeStops.length === 0) return;
