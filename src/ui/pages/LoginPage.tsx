@@ -5,7 +5,6 @@ import { Mail, Lock, LogIn, Loader2, ShieldCheck, AlertCircle, Phone, } from 'lu
 import { useAuthStore } from '../../app/store/authStore';
 import api from '../../shared/lib/api';
 import { IconPasswordHidden, IconPasswordVisible } from '../../shared/components/password/PasswordVisibilityIcons';
-import { PasswordCriteriaChecklist } from '../../shared/components/password/PasswordCriteriaChecklist';
 
 interface VibeRouteLogoProps {
   className?: string;
@@ -287,10 +286,22 @@ export const LoginPage: React.FC = () => {
                       autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-14 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
-                      placeholder="Mínimo 8 caracteres"
+                      className="w-full bg-slate-900/50 border border-slate-700 text-white pl-12 pr-36 py-4 rounded-2xl focus:bg-slate-900 focus:border-green-500 outline-none transition-all placeholder:text-slate-600 text-sm font-medium"
+                      placeholder="••••••••"
                       required
                     />
+                    <span
+                      className={`pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide transition-colors sm:right-14 sm:text-[11px] ${
+                        newPassword.length === 0
+                          ? 'text-slate-500'
+                          : isNewPasswordValid
+                            ? 'text-green-400/80'
+                            : 'text-amber-400/80'
+                      }`}
+                      aria-live="polite"
+                    >
+                      Mínimo 8 caracteres
+                    </span>
                     <button
                       type="button"
                       onClick={() => setShowNewPassword((prev) => !prev)}
@@ -304,7 +315,6 @@ export const LoginPage: React.FC = () => {
                       )}
                     </button>
                   </div>
-                  <PasswordCriteriaChecklist visible={newPassword.length > 0} value={newPassword} />
                 </div>
               </>
             )}
@@ -348,7 +358,6 @@ export const LoginPage: React.FC = () => {
                     )}
                   </button>
                 </div>
-                <PasswordCriteriaChecklist visible={password.length > 0} value={password} />
               </div>
             )}
 
