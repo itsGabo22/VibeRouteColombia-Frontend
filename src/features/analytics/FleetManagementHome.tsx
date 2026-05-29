@@ -24,19 +24,11 @@ interface MetricCardProps {
   icon: React.ElementType;
 }
 
-const MetricCard: React.FC<MetricCardProps & { isLive?: boolean }> = ({ title, value, trend, isPositive, icon: Icon, isLive }) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-    {isLive && (
-      <div className="absolute top-0 right-0 p-2">
-        <span className="flex h-2 w-2 relative">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
-      </div>
-    )}
+const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend, isPositive, icon: Icon }) => (
+  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
     <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-xl transition-colors ${isLive ? 'bg-emerald-50 text-emerald-600' : 'bg-teal-50 text-teal-600'}`}>
-        <Icon size={20} className={isLive ? 'animate-pulse' : ''} />
+      <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
+        <Icon size={20} />
       </div>
       <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full ${
         isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
@@ -45,7 +37,7 @@ const MetricCard: React.FC<MetricCardProps & { isLive?: boolean }> = ({ title, v
         {trend}
       </div>
     </div>
-    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 group-hover:text-teal-600 transition-colors">{title}</p>
+    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{title}</p>
     <h4 className="text-2xl font-black text-slate-800 tracking-tight">{value}</h4>
   </div>
 );
@@ -143,14 +135,13 @@ export const FleetManagementHome: React.FC<{ city?: string; searchQuery?: string
           trend="LIVE" 
           isPositive={true} 
           icon={Clock} 
-          isLive={true}
         />
         <MetricCard 
           title="Margen de Utilidad" 
           value={`${(Number(stats?.profitMargin) || 0).toFixed(1)}%`} 
           trend="MARGEN" 
           isPositive={true} 
-          icon={BarChart3} 
+          icon={Clock} 
         />
       </div>
 

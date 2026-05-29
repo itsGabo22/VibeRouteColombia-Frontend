@@ -13,10 +13,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement; allowedRoles?: st
   if (!token) return <Navigate to="/" />;
   
   if (allowedRoles && !allowedRoles.includes(user?.role || '')) {
-     if (user?.role === 'SUPER_ADMIN') return <Navigate to="/arch-console" />;
-     if (user?.role === 'ADMIN') return <Navigate to="/admin" />;
-     if (user?.role === 'LOGISTICS') return <Navigate to="/manager" />;
-     if (user?.role === 'DRIVER') return <Navigate to="/operational" />;
+     if (user?.role === 'SUPER_ADMIN') return <Navigate to="/arch-console" replace />;
+     if (user?.role === 'ADMIN') return <Navigate to="/admin" replace />;
+     if (user?.role === 'LOGISTICS') return <Navigate to="/manager" replace />;
+     if (user?.role === 'DRIVER') return <Navigate to="/operational" replace />;
+     return <Navigate to="/" replace />;
   }
   
   return children;

@@ -2,6 +2,56 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, MapPin, Truck, CheckCircle2, Download, AlertCircle, Loader2, FileText } from 'lucide-react';
 import api from '../../shared/lib/api';
+import { escapeHtml, renderBoldSegments } from '../../shared/utils/textFormat';
+
+const PRINT_STYLES = `
+  .hidden-print-only { display: none; }
+  @media print {
+    @page { margin: 1.5cm; size: auto; }
+    body * { visibility: hidden !important; }
+    .hidden-print-only, .hidden-print-only * { visibility: visible !important; }
+    .hidden-print-only {
+      display: block !important;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      background: white;
+    }
+    .print-page { padding: 10px; font-family: 'Segoe UI', sans-serif; color: #1e293b; }
+    .print-header { border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 25px; }
+    .print-header h1 { color: #4f46e5; margin: 0; font-size: 32pt; font-weight: 800; letter-spacing: -1px; }
+    .print-meta { display: flex; justify-content: space-between; margin-top: 5px; }
+    .print-subtitle { font-weight: 700; text-transform: uppercase; font-size: 9pt; color: #64748b; }
+    .print-date { font-size: 9pt; color: #94a3b8; }
+    .print-body { font-size: 11pt; line-height: 1.6; text-align: justify; }
+    .print-title { color: #4f46e5; font-size: 16pt; margin-top: 25px; margin-bottom: 12px; border-left: 5px solid #4f46e5; padding-left: 15px; }
+    .print-text { margin-bottom: 10px; }
+    .print-spacer { height: 8px; }
+    .print-footer { margin-top: 40px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; text-align: center; }
+  }
+`;
+
+function renderAiLine(line: string, key: number, className?: string) {
+  if (line.trim() === '') {
+    return className === 'print-spacer'
+      ? <div key={key} className="print-spacer" />
+      : <p key={key} className="h-3" />;
+  }
+  if (line.startsWith('###')) {
+    return <h2 key={key} className="print-title">{line.replace('###', '').trim()}</h2>;
+  }
+  const segments = renderBoldSegments(line);
+  return (
+    <p key={key} className={className ?? 'mb-2'}>
+      {segments.map((segment, idx) =>
+        typeof segment === 'string'
+          ? segment
+          : <strong key={`${key}-b-${idx}`}>{segment.bold}</strong>
+      )}
+    </p>
+  );
+}
 
 interface Order {
   id: number;
@@ -89,8 +139,13 @@ export const SmartDispatchModal: React.FC<SmartDispatchModalProps> = ({ plan, on
       <body>
         <h1>VibeRoute: Reporte Estratégico de Despacho</h1>
         ${plan.aiReport.split('\n').map(line => {
-          const formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-          return line.trim() === '' ? '<br/>' : `<p>${formatted}</p>`;
+          if (line.trim() === '') return '<br/>';
+          const html = renderBoldSegments(line).map(segment =>
+            typeof segment === 'string'
+              ? escapeHtml(segment)
+              : `<strong>${escapeHtml(segment.bold)}</strong>`
+          ).join('');
+          return `<p>${html}</p>`;
         }).join('')}
       </body>
       </html>
@@ -145,10 +200,7 @@ export const SmartDispatchModal: React.FC<SmartDispatchModalProps> = ({ plan, on
                 
                 <div className={`relative transition-all duration-500 ${isExpanded ? 'max-h-[1000px]' : 'max-h-[220px] overflow-hidden'}`}>
                    <div className="text-[11px] text-slate-600 leading-relaxed font-medium relative z-10 whitespace-pre-line font-sans">
-                      {plan.aiReport.split('\n').map((line, i) => {
-                        const formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                        return <p key={i} className={`${line.trim() === '' ? 'h-3' : 'mb-2'}`} dangerouslySetInnerHTML={{ __html: formattedLine }} />;
-                      })}
+                      {plan.aiReport.split('\n').map((line, i) => renderAiLine(line, i))}
                    </div>
                    
                    {!isExpanded && (
@@ -193,14 +245,7 @@ export const SmartDispatchModal: React.FC<SmartDispatchModalProps> = ({ plan, on
             </div>
             
             <div className="print-body">
-              {plan.aiReport.split('\n').map((line, i) => {
-                const formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                if (line.trim() === '') return <div key={i} className="print-spacer" />;
-                if (line.startsWith('###')) {
-                  return <h2 key={i} className="print-title">{line.replace('###', '').trim()}</h2>;
-                }
-                return <p key={i} className="print-text" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
-              })}
+              {plan.aiReport.split('\n').map((line, i) => renderAiLine(line, i, line.trim() === '' ? 'print-spacer' : 'print-text'))}
             </div>
 
             <div className="print-footer">
@@ -209,33 +254,7 @@ export const SmartDispatchModal: React.FC<SmartDispatchModalProps> = ({ plan, on
           </div>
         </div>
 
-        <style dangerouslySetInnerHTML={{ __html: `
-          .hidden-print-only { display: none; }
-          @media print {
-            @page { margin: 1.5cm; size: auto; }
-            body * { visibility: hidden !important; }
-            .hidden-print-only, .hidden-print-only * { visibility: visible !important; }
-            .hidden-print-only { 
-              display: block !important; 
-              position: absolute; 
-              left: 0; 
-              top: 0; 
-              width: 100%; 
-              background: white;
-            }
-            .print-page { padding: 10px; font-family: 'Segoe UI', sans-serif; color: #1e293b; }
-            .print-header { border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 25px; }
-            .print-header h1 { color: #4f46e5; margin: 0; font-size: 32pt; font-weight: 800; letter-spacing: -1px; }
-            .print-meta { display: flex; justify-content: space-between; margin-top: 5px; }
-            .print-subtitle { font-weight: 700; text-transform: uppercase; font-size: 9pt; color: #64748b; }
-            .print-date { font-size: 9pt; color: #94a3b8; }
-            .print-body { font-size: 11pt; line-height: 1.6; text-align: justify; }
-            .print-title { color: #4f46e5; font-size: 16pt; margin-top: 25px; margin-bottom: 12px; border-left: 5px solid #4f46e5; padding-left: 15px; }
-            .print-text { margin-bottom: 10px; }
-            .print-spacer { height: 8px; }
-            .print-footer { margin-top: 40px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; text-align: center; }
-          }
-        `}} />
+        <style>{PRINT_STYLES}</style>
              </div>
 
              <div className="space-y-3">
