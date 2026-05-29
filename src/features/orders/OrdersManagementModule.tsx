@@ -329,7 +329,7 @@ export const OrdersManagementModule: React.FC<{
   };
 
   const statusMap: any = {
-    'PENDING': { label: 'PENDIENTE', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
+    'PENDING': { label: 'PENDIENTE', color: 'bg-orange-100 text-orange-700', icon: Clock },
     'ON_ROUTE': { label: 'EN RUTA', color: 'bg-blue-100 text-blue-700', icon: Navigation },
     'DELIVERED': { label: 'ENTREGADO', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
     'CANCELLED': { label: 'CANCELADO', color: 'bg-red-100 text-red-700', icon: XCircle },
@@ -456,7 +456,7 @@ export const OrdersManagementModule: React.FC<{
   const paginatedOrders = filteredOrders.slice(pageStartIndex, pageEndIndex);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 touch-manipulation overscroll-none">
       <div className="rounded-[2rem] border border-slate-100 bg-white/80 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative w-full max-w-xl group">
@@ -625,7 +625,68 @@ export const OrdersManagementModule: React.FC<{
         </div>
       </div>
 
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+      {driverName && (
+        <div className="grid gap-4 md:hidden">
+          {loading ? (
+            <div className="rounded-2xl bg-white shadow-md border border-slate-100 p-8 text-center">
+              <Loader2 className="mx-auto mb-3 animate-spin text-emerald-500" size={28} />
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cargando pedidos...</p>
+            </div>
+          ) : paginatedOrders.length === 0 ? (
+            <div className="rounded-2xl bg-white shadow-md border border-slate-100 p-8 text-center">
+              <Package className="mx-auto text-slate-200 mb-2" size={44} />
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sin registros encontrados</p>
+            </div>
+          ) : (
+            paginatedOrders.map((order) => {
+              const StatusIcon = statusMap[order.status]?.icon || Info;
+
+              return (
+                <motion.button
+                  key={order.id}
+                  type="button"
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedOrder(order)}
+                  className="w-full rounded-2xl bg-white shadow-md border border-slate-100 p-4 text-left transition-all duration-200 active:shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pedido #{order.id}</p>
+                      <h3 className="mt-1 truncate text-base font-black text-slate-900">{order.clientReference || order.clientName}</h3>
+                    </div>
+                    <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${statusMap[order.status]?.color || 'bg-slate-50 text-slate-400'}`}>
+                      <StatusIcon size={11} />
+                      {statusMap[order.status]?.label || order.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex items-start gap-3 rounded-2xl bg-slate-50 p-3">
+                    <MapPin size={17} className="mt-0.5 shrink-0 text-emerald-500" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold leading-snug text-slate-800">{order.address}</p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{order.city}, Colombia</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${priorityMap[order.priority]?.color || 'bg-slate-100 text-slate-400'}`}>
+                      {priorityMap[order.priority]?.label || order.priority}
+                    </span>
+                    <span className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white">
+                      Ver detalle
+                    </span>
+                  </div>
+                </motion.button>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      <div className={`bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden ${driverName ? 'hidden md:block' : ''}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur">

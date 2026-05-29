@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Truck, 
   Package, 
   TrendingUp, 
   Clock, 
+  Clock3,
+  Route,
+  Brain,
+  PackageCheck,
   MapPin, 
   LogOut, 
   Navigation,
-  LayoutDashboard,
   Loader2,
   DollarSign,
   CheckCircle2,
@@ -24,11 +27,15 @@ import { OrdersManagementModule } from '../../features/orders/OrdersManagementMo
 import { MapsNavigationModule } from '../../features/routes/MapsNavigationModule';
 import { useRouteStore } from '../../app/store/routeStore';
 
+type DriverView = 'summary' | 'map' | 'list';
+
+const MemoizedMapsNavigationModule = memo(MapsNavigationModule);
+
 export const DriverDashboardPage: React.FC = () => {
   const { user, logout, token } = useAuthStore();
   const { currentBatchId, startMission } = useMissionStore();
   const navigate = useNavigate();
-  const [view, setView] = useState<'summary' | 'list' | 'map'>('summary');
+  const [view, setView] = useState<DriverView>('map');
   
   const [driverId, setDriverId] = useState<number>(0);
   const [orders, setOrders] = useState<any[]>([]);
@@ -115,10 +122,52 @@ export const DriverDashboardPage: React.FC = () => {
     fetchData();
   }, [token, user?.email]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate('/');
-  };
+  }, [logout, navigate]);
+
+  const efficiency = useMemo(() => {
+    if (orders.length === 0) return 0;
+    return Math.round((stats.delivered / orders.length) * 100);
+  }, [orders.length, stats.delivered]);
+
+  const distanceEstimate = useMemo(() => Math.max(1, Math.round((stats.delivered + stats.pending) * 2.4)), [stats.delivered, stats.pending]);
+
+  const reportMetrics = useMemo(() => [
+    { label: 'Entregas', value: `${stats.delivered}/${orders.length}`, helper: `${stats.pending} pendientes`, icon: PackageCheck, tone: 'text-emerald-600 bg-emerald-100' },
+    { label: 'Tiempo', value: `${stats.hours}h`, helper: 'ventana operativa', icon: Clock, tone: 'text-sky-600 bg-sky-100' },
+    { label: 'Distancia', value: `${distanceEstimate} km`, helper: 'estimado de ruta', icon: Route, tone: 'text-teal-600 bg-teal-100' },
+    { label: 'Eficiencia', value: `${efficiency}%`, helper: 'cumplimiento', icon: TrendingUp, tone: 'text-lime-600 bg-lime-100' },
+    { label: 'Rendimiento IA', value: copilotTips ? 'Activo' : 'Base', helper: copilotTips ? 'copiloto cargado' : 'sin tips IA', icon: Brain, tone: 'text-violet-600 bg-violet-100' },
+  ], [copilotTips, distanceEstimate, efficiency, orders.length, stats.delivered, stats.hours, stats.pending]);
+
+  const tabs = useMemo(() => [
+    { id: 'summary' as const, label: 'Turno', icon: Clock3 },
+    { id: 'map' as const, label: 'Mapa', icon: MapIcon },
+    { id: 'list' as const, label: 'Pedidos', icon: Package },
+  ], []);
+
+  const renderTab = useCallback((tab: typeof tabs[number]) => {
+    const Icon = tab.icon;
+    const active = view === tab.id;
+    const isCentral = tab.id === 'map';
+
+    return (
+      <button
+        key={tab.id}
+        type="button"
+        onClick={() => setView(tab.id)}
+        className={`flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium transition-all duration-200 active:scale-95 ${
+          active ? 'text-emerald-600 scale-105 font-semibold' : 'text-slate-500'
+        } ${isCentral ? 'bg-emerald-50 rounded-2xl px-4 shadow-sm shadow-emerald-100/60' : 'px-3'}`}
+        aria-current={active ? 'page' : undefined}
+      >
+        <Icon size={isCentral ? 23 : 21} strokeWidth={active ? 2.8 : 2.2} />
+        <span>{tab.label}</span>
+      </button>
+    );
+  }, [tabs, view]);
 
   if (loading) {
     return (
@@ -130,11 +179,11 @@ export const DriverDashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="h-[100dvh] w-full bg-[#F8FAFC] flex flex-col overflow-hidden font-sans relative">
+    <div className="h-screen w-full overflow-hidden bg-slate-100 touch-manipulation overscroll-none select-none font-sans relative">
       
       {/* Header - Hidden in Map View to maximize space */}
       {view !== 'map' && (
-        <header className="bg-white border-b border-slate-100 px-6 py-5 shrink-0 z-30 shadow-sm">
+        <header className="bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-4 shrink-0 z-30 shadow-sm">
           <div className="max-w-md mx-auto flex justify-between items-center">
             <div className="flex items-center gap-3">
                <div className="w-10 h-10 bg-green-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-200 text-white">
@@ -153,8 +202,8 @@ export const DriverDashboardPage: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 min-h-0 w-full relative ${view === 'map' ? 'overflow-hidden' : 'overflow-y-auto pb-32'}`}>
-        <div className={view === 'map' ? 'absolute inset-0' : 'max-w-md mx-auto p-6 space-y-8'}>
+      <main className={`w-full relative ${view === 'map' ? 'h-[calc(100vh-80px)] overflow-hidden' : 'h-[calc(100vh-80px)] overflow-y-auto pb-28 overscroll-none'}`}>
+        <div className={view === 'map' ? 'absolute inset-0' : 'max-w-md mx-auto p-5 space-y-6'}>
           
           {/* User Welcome - Only in Summary View */}
           {view === 'summary' && (
@@ -187,31 +236,45 @@ export const DriverDashboardPage: React.FC = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm col-span-2">
+                <section className="rounded-3xl shadow-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 p-5 space-y-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-800">Smart Logistics Report</h3>
+                      <p className="text-sm text-slate-500">Resumen inteligente del turno y rendimiento operativo.</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-white/80 shadow-md flex items-center justify-center text-emerald-600">
+                      <Brain size={24} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {reportMetrics.map((metric) => {
+                      const Icon = metric.icon;
+                      return (
+                        <motion.div
+                          key={metric.label}
+                          whileTap={{ scale: 0.97 }}
+                          className="bg-white/80 backdrop-blur rounded-2xl shadow-md p-4 border border-white/70"
+                        >
+                          <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${metric.tone}`}>
+                            <Icon size={18} />
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{metric.label}</p>
+                          <p className="text-xl font-black text-slate-900 tracking-tight">{metric.value}</p>
+                          <p className="text-[11px] text-slate-400 font-semibold">{metric.helper}</p>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="bg-white/80 backdrop-blur rounded-2xl shadow-md p-4 border border-white/70">
                       <div className="flex justify-between items-center mb-2">
                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Valor de Ruta</p>
                          <DollarSign size={16} className="text-emerald-500" />
                       </div>
                       <h3 className="text-3xl font-black text-slate-900">${stats.totalValue.toLocaleString()}</h3>
-                   </div>
-                   <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">Entregados</p>
-                      <h3 className="text-2xl font-black text-green-600">{stats.delivered}</h3>
-                   </div>
-                   <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">Pendientes</p>
-                      <h3 className="text-2xl font-black text-amber-500">{stats.pending}</h3>
-                   </div>
-                   <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">Cancelados</p>
-                      <h3 className="text-2xl font-black text-rose-500">{stats.cancelled}</h3>
-                   </div>
-                   <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">Devueltos</p>
-                      <h3 className="text-2xl font-black text-orange-500">{stats.returned}</h3>
-                   </div>
-                </div>
+                  </div>
+                </section>
 
                 {nextOrder ? (
                   <div className="bg-slate-900 p-7 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
@@ -251,58 +314,16 @@ export const DriverDashboardPage: React.FC = () => {
               </motion.div>
             ) : (
               <div key="map" className="h-full w-full">
-                 <MapsNavigationModule />
+                 <MemoizedMapsNavigationModule />
               </div>
             )}
           </AnimatePresence>
         </div>
       </main>
 
-      {view === 'map' && (
-        <nav
-          className="fixed bottom-[max(6.5rem,env(safe-area-inset-bottom))] right-3 z-50 flex flex-col gap-2 pointer-events-none"
-          aria-label="Salir del mapa"
-        >
-          <button
-            type="button"
-            onClick={() => setView('summary')}
-            className="pointer-events-auto touch-manipulation min-h-[44px] px-4 rounded-2xl bg-white/95 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-xl border border-slate-200 active:scale-95"
-          >
-            Turno
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('list')}
-            className="pointer-events-auto touch-manipulation min-h-[44px] px-4 rounded-2xl bg-white/95 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-xl border border-slate-200 active:scale-95"
-          >
-            Pedidos
-          </button>
-        </nav>
-      )}
-
-      <footer className={`bg-white/90 backdrop-blur-md border-t border-slate-100 p-3 shrink-0 z-40 fixed bottom-0 left-0 right-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${view === 'map' ? 'hidden' : ''}`}>
-        <div className="max-w-md mx-auto grid grid-cols-3 gap-2">
-           <button 
-             onClick={() => setView('summary')}
-             className={`py-3 rounded-2xl flex flex-col items-center gap-1 transition-all ${view === 'summary' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}
-           >
-              <LayoutDashboard size={20} />
-              <span className="text-[9px] font-black uppercase tracking-widest">Turno</span>
-           </button>
-           <button 
-             onClick={() => setView('list')}
-             className={`py-3 rounded-2xl flex flex-col items-center gap-1 transition-all ${view === 'list' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}
-           >
-              <Package size={20} />
-              <span className="text-[9px] font-black uppercase tracking-widest">Pedidos</span>
-           </button>
-           <button 
-             onClick={() => setView('map')}
-             className={`py-3 rounded-2xl flex flex-col items-center gap-1 transition-all ${view === 'map' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}
-           >
-              <MapIcon size={20} />
-              <span className="text-[9px] font-black uppercase tracking-widest">Mapa</span>
-           </button>
+      <footer className="fixed bottom-0 left-0 right-0 w-full bg-white/95 backdrop-blur-md border-t border-slate-200 z-50 pb-safe shadow-2xl">
+        <div className="mx-auto grid h-20 max-w-md grid-cols-3 items-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+          {tabs.map(renderTab)}
         </div>
       </footer>
     </div>
