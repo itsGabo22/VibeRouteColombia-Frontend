@@ -11,6 +11,8 @@ const LIBRARIES: ("geometry" | "drawing" | "places" | "visualization")[] = ["geo
 const COMPLETED_STATUSES = new Set(['DELIVERED', 'RETURNED', 'CANCELLED']);
 const GPS_ICON_SIZE = 24;
 const ROUTE_RECALC_INTERVAL_MS = 4500;
+const ROUTE_EATEN_THRESHOLD_METERS = 50;
+const PRIORITY_RANK: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
 
 type MapStop = {
   id?: number;
@@ -34,6 +36,15 @@ const normalizeStop = (o: Record<string, unknown>): MapStop => ({
   lng: Number(o.lng ?? o.longitude ?? (o.location as { lng?: number })?.lng),
 });
 
+const orderStopsForStrategy = (stops: MapStop[], strategy: 'EFFICIENCY' | 'PRIORITY') => {
+  if (stops.length <= 1 || strategy !== 'PRIORITY') return stops;
+  const [activeStop, ...rest] = stops;
+  return [
+    activeStop,
+    ...rest.sort((a, b) => (PRIORITY_RANK[b.priority || ''] ?? 0) - (PRIORITY_RANK[a.priority || ''] ?? 0)),
+  ];
+};
+
 export const MapsNavigationModule: React.FC = () => {
   const { currentBatchId, setActiveOrder } = useMissionStore();
   const route = useRouteStore((s) => s.route);
@@ -50,6 +61,8 @@ export const MapsNavigationModule: React.FC = () => {
   const [optMode, setOptMode] = useState<'EFFICIENCY' | 'PRIORITY'>('EFFICIENCY');
   const [activePath, setActivePath] = useState<google.maps.LatLngLiteral[]>([]);
   const [futurePath, setFuturePath] = useState<google.maps.LatLngLiteral[]>([]);
+  const [currentWaypoints, setCurrentWaypoints] = useState<MapStop[]>([]);
+  const [routeVersion, setRouteVersion] = useState(0);
   const [etaInfo, setEtaInfo] = useState<{distance: string, duration: string} | null>(null);
   
   const activePolylineRef = useRef<google.maps.Polyline | null>(null);
@@ -67,6 +80,7 @@ export const MapsNavigationModule: React.FC = () => {
   const routeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dynamicRouteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDirectionsSyncRef = useRef(0);
+  const renderedRouteVersionRef = useRef(0);
   const isMobile =
     typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
 
@@ -87,6 +101,18 @@ export const MapsNavigationModule: React.FC = () => {
     { "featureType": "water", "stylers": [{ "color": mapTheme === 'light' ? "#cbd5e1" : "#050d14" }] }
   ], [mapTheme]);
 
+  const clearRouteVisuals = useCallback(() => {
+    activePolylineRef.current?.setMap(null);
+    futurePolylineRef.current?.setMap(null);
+    activePolylineRef.current = null;
+    futurePolylineRef.current = null;
+    setActivePath([]);
+    setFuturePath([]);
+    setCurrentWaypoints([]);
+    setEtaInfo(null);
+    setRouteVersion((version) => version + 1);
+  }, []);
+
   const buildRemainingDirections = useCallback((
     stopsToRoute: MapStop[],
     origin: google.maps.LatLngLiteral,
@@ -98,14 +124,13 @@ export const MapsNavigationModule: React.FC = () => {
       return;
     }
 
-    const validStops = stopsToRoute.filter(isActiveStop);
+    const validStops = orderStopsForStrategy(stopsToRoute.filter(isActiveStop), targetMode);
     const immediateStop = validStops[0] ?? null;
     setActiveOrder(immediateStop?.id ?? null);
+    setCurrentWaypoints(validStops);
 
     if (validStops.length === 0 || !immediateStop) {
-      setActivePath([]);
-      setFuturePath([]);
-      setEtaInfo(null);
+      clearRouteVisuals();
       setOptimizing(false);
       setLoading(false);
       return;
@@ -142,6 +167,7 @@ export const MapsNavigationModule: React.FC = () => {
         const firstLeg = firstRes.routes[0].legs[0];
         setEtaInfo({ distance: firstLeg.distance?.text || '', duration: firstLeg.duration?.text || '' });
         setActivePath(pathFromLegs([firstLeg]));
+        setRouteVersion((version) => version + 1);
 
         const remaining = validStops.slice(1);
         ds.route({
@@ -152,7 +178,14 @@ export const MapsNavigationModule: React.FC = () => {
           optimizeWaypoints: true,
         }, (futureRes, futureStatus) => {
           if (reqId === lastRequestId.current && futureStatus === 'OK' && futureRes) {
+            const intermediate = remaining.slice(0, -1);
+            const optimizedRemaining = [
+              ...futureRes.routes[0].waypoint_order.map((index) => intermediate[index]),
+              remaining[remaining.length - 1],
+            ].filter(Boolean);
+            setCurrentWaypoints([immediateStop, ...optimizedRemaining]);
             setFuturePath(pathFromLegs(futureRes.routes[0].legs));
+            setRouteVersion((version) => version + 1);
           }
           finish();
         });
@@ -172,10 +205,11 @@ export const MapsNavigationModule: React.FC = () => {
         setEtaInfo({ distance: firstLeg.distance?.text || '', duration: firstLeg.duration?.text || '' });
         setActivePath(pathFromLegs([firstLeg]));
         setFuturePath(pathFromLegs(res.routes[0].legs.slice(1)));
+        setRouteVersion((version) => version + 1);
       }
       finish();
     });
-  }, [currentBatchId, driverPos, isLoaded, setActiveOrder]);
+  }, [clearRouteVisuals, currentBatchId, driverPos, isLoaded, setActiveOrder]);
 
   // DECLARACIÓN DE CALLBACKS (ANTES DE EFECTOS)
   const syncRoute = useCallback(async (targetMode: 'EFFICIENCY' | 'PRIORITY') => {
@@ -188,15 +222,14 @@ export const MapsNavigationModule: React.FC = () => {
     setOptimizing(true);
     
     // LIMPIEZA ATÓMICA DE ESTADOS LOCALES
-    setActivePath([]);
-    setFuturePath([]);
-    setEtaInfo(null);
+    clearRouteVisuals();
 
     try {
       const { data: optRoute } = await api.post(`/batches/${currentBatchId}/optimize`, {
         lat: driverPos.lat,
         lng: driverPos.lng,
-        mode: targetMode
+        mode: targetMode,
+        strategy: targetMode
       });
 
       if (reqId !== lastRequestId.current) return;
@@ -212,7 +245,16 @@ export const MapsNavigationModule: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [currentBatchId, driverPos, isLoaded, setRoute]);
+  }, [clearRouteVisuals, currentBatchId, driverPos, isLoaded, setRoute]);
+
+  const updateRouteStrategy = useCallback((strategy: 'EFFICIENCY' | 'PRIORITY') => {
+    if (routeSyncTimerRef.current) clearTimeout(routeSyncTimerRef.current);
+    if (dynamicRouteTimerRef.current) clearTimeout(dynamicRouteTimerRef.current);
+    lastDirectionsSyncRef.current = 0;
+    clearRouteVisuals();
+    setOptMode(strategy);
+    syncRoute(strategy);
+  }, [clearRouteVisuals, syncRoute]);
 
   // INTEGRACIÓN DE GIROSCOPIO / BRÚJULA (DeviceOrientation API)
   useEffect(() => {
@@ -270,7 +312,7 @@ export const MapsNavigationModule: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [optMode, currentBatchId, !!driverPos, isLoaded]);
+  }, [currentBatchId, !!driverPos, isLoaded]);
 
   useEffect(() => {
     if (!isFollowing || !mapRef.current || !driverPos || isMapDraggingRef.current) return;
@@ -310,7 +352,38 @@ export const MapsNavigationModule: React.FC = () => {
   }, [setDriverPos]);
 
   useEffect(() => {
+    if (!driverPos || activePath.length < 2 || !google.maps.geometry?.spherical) return;
+
+    const userLatLng = new google.maps.LatLng(driverPos.lat, driverPos.lng);
+    let closestIndex = -1;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    activePath.forEach((point, index) => {
+      const distance = google.maps.geometry.spherical.computeDistanceBetween(
+        userLatLng,
+        new google.maps.LatLng(point.lat, point.lng)
+      );
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    if (closestIndex > 0 && closestDistance <= ROUTE_EATEN_THRESHOLD_METERS) {
+      setActivePath((prev) => prev.slice(closestIndex));
+    }
+  }, [activePath, driverPos?.lat, driverPos?.lng]);
+
+  useEffect(() => {
     if (!mapRef.current) return;
+
+    if (renderedRouteVersionRef.current !== routeVersion) {
+      activePolylineRef.current?.setMap(null);
+      futurePolylineRef.current?.setMap(null);
+      activePolylineRef.current = null;
+      futurePolylineRef.current = null;
+      renderedRouteVersionRef.current = routeVersion;
+    }
 
     const upsertPolyline = (
       ref: React.MutableRefObject<google.maps.Polyline | null>,
@@ -368,7 +441,7 @@ export const MapsNavigationModule: React.FC = () => {
         repeat: '100px',
       }],
     });
-  }, [activePath, futurePath, isMobile]);
+  }, [activePath, futurePath, isMobile, routeVersion]);
 
   const allStops = useMemo((): MapStop[] => {
     const routeStops = Array.isArray(route?.stops) ? route.stops : [];
@@ -398,7 +471,18 @@ export const MapsNavigationModule: React.FC = () => {
     [allStops]
   );
 
-  const nextStop = activeStops[0] ?? null;
+  const displayedStops = useMemo(() => {
+    if (currentWaypoints.length === 0) return activeStops;
+    const activeIds = new Set(activeStops.map((stop) => stop.id).filter(Boolean));
+    const reconciled = currentWaypoints.filter((stop) => !stop.id || activeIds.has(stop.id));
+    return reconciled.length > 0 ? reconciled : activeStops;
+  }, [activeStops, currentWaypoints]);
+  const nextStop = displayedStops[0] ?? null;
+  const activeOrderId = nextStop?.id ?? null;
+  const routeRenderKey = useMemo(
+    () => `route-${optMode}-${activeOrderId ?? 'none'}-${routeVersion}`,
+    [activeOrderId, optMode, routeVersion]
+  );
 
   const activeStopsSignature = useMemo(
     () => activeStops.map((stop) => `${stop.id ?? `${stop.lat},${stop.lng}`}:${stop.status ?? 'ACTIVE'}`).join('|'),
@@ -409,9 +493,7 @@ export const MapsNavigationModule: React.FC = () => {
     if (!isLoaded || !driverPos) return;
     if (activeStops.length === 0) {
       setActiveOrder(null);
-      setActivePath([]);
-      setFuturePath([]);
-      setEtaInfo(null);
+      clearRouteVisuals();
       setLoading(false);
       return;
     }
@@ -439,6 +521,7 @@ export const MapsNavigationModule: React.FC = () => {
   }, [
     activeStopsSignature,
     buildRemainingDirections,
+    clearRouteVisuals,
     driverPos?.lat,
     driverPos?.lng,
     isLoaded,
@@ -447,10 +530,10 @@ export const MapsNavigationModule: React.FC = () => {
   ]);
 
   const fitAll = useCallback(() => {
-    if (!mapRef.current || activeStops.length === 0) return;
+    if (!mapRef.current || displayedStops.length === 0) return;
     setIsFollowing(false);
     const b = new google.maps.LatLngBounds();
-    activeStops.forEach((stop: MapStop) => b.extend({ lat: stop.lat, lng: stop.lng }));
+    displayedStops.forEach((stop: MapStop) => b.extend({ lat: stop.lat, lng: stop.lng }));
     if (driverPos) b.extend(driverPos);
     mapRef.current.fitBounds(b, {
       top: isMobile ? 88 : 100,
@@ -458,7 +541,7 @@ export const MapsNavigationModule: React.FC = () => {
       left: 48,
       right: 48,
     });
-  }, [activeStops, driverPos, isMobile]);
+  }, [displayedStops, driverPos, isMobile]);
 
   const handleMapZoomChange = useCallback(() => {
     if (isFollowing) setIsFollowing(false);
@@ -484,6 +567,7 @@ export const MapsNavigationModule: React.FC = () => {
 
   return (
     <div
+      data-route-key={routeRenderKey}
       className={`relative w-full h-full min-h-0 overflow-hidden overscroll-none ${mapTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'}`}
     >
       <GoogleMap
@@ -503,7 +587,7 @@ export const MapsNavigationModule: React.FC = () => {
         onZoomChanged={handleMapZoomChange}
         options={mapOptions}
       >
-        {activeStops.map((stop: MapStop, idx: number) => (
+        {displayedStops.map((stop: MapStop, idx: number) => (
           <MarkerF
             key={`stop-${stop.id ?? idx}`}
             position={{ lat: stop.lat, lng: stop.lng }}
@@ -684,13 +768,13 @@ export const MapsNavigationModule: React.FC = () => {
               <div className="bg-emerald-500/10 p-3 rounded-2xl text-emerald-600 shrink-0"><Box className="w-6 h-6" /></div>
               <div className="min-w-0">
                 <p className="text-sm font-black text-slate-900 leading-none truncate">Lote #{currentBatchId || 'Asignado'}</p>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{activeStops.length} envíos activos</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{displayedStops.length} envíos activos</p>
               </div>
             </div>
             {currentBatchId && (
               <div className="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200 shrink-0">
-                <button type="button" onClick={() => setOptMode('EFFICIENCY')} className={`min-h-[40px] px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${optMode === 'EFFICIENCY' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400'}`}>Eficiencia</button>
-                <button type="button" onClick={() => setOptMode('PRIORITY')} className={`min-h-[40px] px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${optMode === 'PRIORITY' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400'}`}>Prioridad</button>
+                <button type="button" onClick={() => updateRouteStrategy('EFFICIENCY')} className={`min-h-[40px] px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${optMode === 'EFFICIENCY' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400'}`}>Eficiencia</button>
+                <button type="button" onClick={() => updateRouteStrategy('PRIORITY')} className={`min-h-[40px] px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${optMode === 'PRIORITY' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400'}`}>Prioridad</button>
               </div>
             )}
           </div>
