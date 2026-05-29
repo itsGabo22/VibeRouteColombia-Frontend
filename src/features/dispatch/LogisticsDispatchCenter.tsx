@@ -87,7 +87,9 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
 
   const generatePDF = async () => {
     try {
-      const response = await api.get(`/reports/generate-global`, { responseType: 'blob' });
+      const params = new URLSearchParams();
+      if (city?.trim()) params.append('city', city.trim());
+      const response = await api.get(`/reports/generate-global${params.toString() ? `?${params.toString()}` : ''}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;

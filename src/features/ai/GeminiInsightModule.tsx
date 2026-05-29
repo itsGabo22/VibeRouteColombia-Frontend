@@ -22,7 +22,7 @@ interface GeminiInsightProps {
 }
 
 export const GeminiInsightModule: React.FC<GeminiInsightProps> = ({ stats }) => {
-  const [insight, setInsight] = useState<string>('');
+  const [insight, setInsight] = useState<string>('Esperando cierre de la jornada para realizar el diagnóstico cognitivo...');
   const [loading, setLoading] = useState(false);
 
   // Dynamic Efficiency Score Calculation

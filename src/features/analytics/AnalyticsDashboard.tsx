@@ -69,8 +69,8 @@ export const AnalyticsDashboard: React.FC = () => {
 
   // Gráfica de Barras Basada en Datos Reales (Módulo 1)
   const barSeriesDelivered = activeCity === 'Todas' 
-    ? [stats?.today || 0, (stats?.week || 0) / 7, (stats?.week || 0) / 5] // Estimación basada en real
-    : [stats?.byCity?.[activeCity] || 0];
+    ? [stats?.today || 0, (stats?.thisWeek || 0) / 7, (stats?.thisMonth || 0) / 30] 
+    : [stats?.deliveriesByCity?.[activeCity] || 0];
 
   const barData = {
     labels: activeCity === 'Todas' ? ['Hoy', 'Semana', 'Mes'] : [activeCity],
@@ -127,7 +127,7 @@ export const AnalyticsDashboard: React.FC = () => {
 
   const cityCount = activeCity === 'Todas' 
     ? stats?.today || 0 
-    : stats?.byCity?.[activeCity] || 0;
+    : stats?.deliveriesByCity?.[activeCity] || 0;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -168,7 +168,7 @@ export const AnalyticsDashboard: React.FC = () => {
            { label: 'Ingresos Totales', val: `$${financials?.totalRevenue?.toLocaleString() || '0'}`, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
            { label: 'Gastos Operativos', val: `$${financials?.operationalCosts?.toLocaleString() || '0'}`, icon: TrendingDown, color: 'text-rose-600', bg: 'bg-rose-50' },
            { label: 'Utilidad Neta', val: `$${financials?.netProfit?.toLocaleString() || '0'}`, icon: PieChart, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-           { label: 'Margen de Ganancia', val: `${financials?.profitMarginPercentage || 0}%`, icon: Target, color: 'text-amber-600', bg: 'bg-amber-50' }
+           { label: 'Margen de Ganancia', val: `${(Number(financials?.profitMarginPercentage) || 0).toFixed(1)}%`, icon: Target, color: 'text-amber-600', bg: 'bg-amber-50' }
          ].map((kpi, i) => (
            <motion.div 
              key={i}
@@ -202,8 +202,8 @@ export const AnalyticsDashboard: React.FC = () => {
                     </div>
                  </div>
                  <div className="text-right">
-                    <p className="text-xs font-black text-emerald-400">{driver.effectivenessPercentage}%</p>
-                    <p className="text-[8px] uppercase font-bold text-slate-500">{driver.successfulDeliveries} Entregas</p>
+                    <p className="text-xs font-black text-emerald-400">{(Number(driver.effectivenessPercentage) || 0).toFixed(1)}%</p>
+                    <p className="text-[8px] uppercase font-bold text-slate-500">{Number(driver.successfulDeliveries) || 0} Entregas</p>
                  </div>
               </div>
             ))}

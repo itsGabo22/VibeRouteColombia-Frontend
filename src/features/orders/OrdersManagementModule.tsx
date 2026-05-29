@@ -164,8 +164,14 @@ export const OrdersManagementModule: React.FC<{
       setIsDownloading(true);
       // Evitamos el cache del navegador añadiendo un timestamp y limpiando el nombre
       const cleanCity = (activeCity || '').trim();
-      const cityQuery = cleanCity ? `city=${encodeURIComponent(cleanCity)}` : '';
-      const url = `/reports/generate-excel?t=${new Date().getTime()}${cityQuery ? '&' + cityQuery : ''}`;
+      const params = new URLSearchParams();
+      params.append('t', String(new Date().getTime()));
+      if (cleanCity) params.append('city', cleanCity);
+      if (filterStatus && filterStatus !== 'ALL') params.append('status', filterStatus);
+      if (driverFilter && driverFilter !== 'ALL') params.append('driver', driverFilter);
+      if (searchTerm && searchTerm.trim()) params.append('search', searchTerm.trim());
+      
+      const url = `/reports/generate-excel?${params.toString()}`;
       
       const response = await api.get(url, { responseType: 'blob' });
       
@@ -188,6 +194,15 @@ export const OrdersManagementModule: React.FC<{
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setFilterStatus('ALL');
+    setDriverFilter('ALL');
+    setCurrentPage(1);
+    setSelectedIds([]);
+    fetchOrders();
   };
 
   const toggleSelectAll = () => {
@@ -303,6 +318,16 @@ export const OrdersManagementModule: React.FC<{
               {s === 'ALL' ? 'TODOS' : statusMap[s]?.label || s}
             </button>
           ))}
+
+          {/* Limpiar Filtros - solo visible cuando hay filtros activos */}
+          {(filterStatus !== 'ALL' || driverFilter !== 'ALL' || searchTerm.trim()) && (
+            <button
+              onClick={handleClearFilters}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl px-4 py-2 text-sm font-bold transition-all"
+            >
+              Limpiar Filtros
+            </button>
+          )}
         </div>
       </div>
 
