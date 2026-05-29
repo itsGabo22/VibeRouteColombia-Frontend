@@ -10,11 +10,24 @@ const containerStyle = { width: '100%', height: '100%' };
 const LIBRARIES: ("geometry" | "drawing" | "places" | "visualization")[] = ["geometry"];
 const COMPLETED_STATUSES = new Set(['DELIVERED', 'RETURNED', 'CANCELLED']);
 
+type MapStop = {
+  id?: number;
+  lat: number;
+  lng: number;
+  status?: string;
+  address?: string;
+  priority?: string;
+  clientName?: string;
+  clientReference?: string;
+  phone?: string;
+  driverName?: string;
+};
+
 const isActiveStop = (stop: { status?: string }) =>
   !stop.status || !COMPLETED_STATUSES.has(stop.status);
 
-const normalizeStop = (o: Record<string, unknown>) => ({
-  ...o,
+const normalizeStop = (o: Record<string, unknown>): MapStop => ({
+  ...(o as MapStop),
   lat: Number(o.lat ?? o.latitude ?? (o.location as { lat?: number })?.lat),
   lng: Number(o.lng ?? o.longitude ?? (o.location as { lng?: number })?.lng),
 });
@@ -294,15 +307,15 @@ export const MapsNavigationModule: React.FC = () => {
     });
   }, [activePath, futurePath, isMobile]);
 
-  const allStops = useMemo(() => {
-    const s = route?.stops || backupOrders || [];
-    return s
-      .map((o: Record<string, unknown>) => normalizeStop(o))
-      .filter((o) => !Number.isNaN(o.lat) && !Number.isNaN(o.lng));
+  const allStops = useMemo((): MapStop[] => {
+    const raw: unknown[] = route?.stops ?? backupOrders ?? [];
+    return raw
+      .map((item) => normalizeStop(item as Record<string, unknown>))
+      .filter((stop: MapStop) => !Number.isNaN(stop.lat) && !Number.isNaN(stop.lng));
   }, [route, backupOrders]);
 
   const activeStops = useMemo(
-    () => allStops.filter((s) => isActiveStop(s)),
+    () => allStops.filter((stop: MapStop) => isActiveStop(stop)),
     [allStops]
   );
 
@@ -312,7 +325,7 @@ export const MapsNavigationModule: React.FC = () => {
     if (!mapRef.current || activeStops.length === 0) return;
     setIsFollowing(false);
     const b = new google.maps.LatLngBounds();
-    activeStops.forEach((s) => b.extend({ lat: s.lat, lng: s.lng }));
+    activeStops.forEach((stop: MapStop) => b.extend({ lat: stop.lat, lng: stop.lng }));
     if (driverPos) b.extend(driverPos);
     mapRef.current.fitBounds(b, {
       top: isMobile ? 88 : 100,
@@ -365,7 +378,7 @@ export const MapsNavigationModule: React.FC = () => {
         onZoomChanged={handleMapZoomChange}
         options={mapOptions}
       >
-        {activeStops.map((stop: { id?: number; lat: number; lng: number }, idx: number) => (
+        {activeStops.map((stop: MapStop, idx: number) => (
           <MarkerF
             key={`stop-${stop.id ?? idx}`}
             position={{ lat: stop.lat, lng: stop.lng }}
