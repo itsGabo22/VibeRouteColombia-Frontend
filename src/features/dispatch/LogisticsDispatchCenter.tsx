@@ -237,7 +237,11 @@ export const LogisticsDispatchCenter: React.FC<{ city?: string; searchQuery?: st
         </div>
       </div>
 
-      <AssignmentToast isOpen={toastOpen} message={toastMessage} />
+      <AssignmentToast
+        isOpen={toastOpen}
+        message={toastMessage}
+        onClose={() => setToastOpen(false)}
+      />
     </div>
   );
 };
