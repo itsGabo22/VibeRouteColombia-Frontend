@@ -37,6 +37,12 @@ export const AdminDashboardPage: React.FC = () => {
   const [selectedCity, setSelectedCity] = useState<string>(user?.assignedCity || '');
 
   const handleLogout = () => {
+    const confirmLogout = window.confirm(
+      "¿Estás seguro de que deseas cerrar tu sesión?"
+    );
+
+    if (!confirmLogout) return;
+
     logout();
     navigate('/');
   };
@@ -66,7 +72,7 @@ export const AdminDashboardPage: React.FC = () => {
   }, [isAdmin, isLogistica]);
 
   return (
-    <div className="min-h-screen bg-[#F0FDFA] flex font-sans overflow-x-hidden">
+    <div className="flex h-screen overflow-hidden bg-slate-100 font-sans">
       
       {/* Sidebar Style Fleet Management */}
       <aside className="hidden lg:flex w-72 bg-teal-900 text-white flex-col fixed h-full z-40">
@@ -118,7 +124,7 @@ export const AdminDashboardPage: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full lg:ml-72 p-4 sm:p-6 lg:p-10 min-h-screen min-w-0">
+      <main className="flex-1 min-h-0 w-full lg:ml-72 min-w-0 overflow-y-auto overscroll-contain touch-manipulation p-4 sm:p-6 lg:p-10">
         <div className="lg:hidden mb-6 rounded-[1.75rem] bg-teal-900 p-4 shadow-xl shadow-teal-900/10">
           <div className="flex items-center gap-3 mb-4 text-white">
             <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
@@ -148,7 +154,7 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
         
         {/* Fleet Header */}
-        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-10">
+        <header className="sticky top-0 z-40 flex-none bg-white/95 backdrop-blur-md border-b border-slate-200 -mx-4 sm:-mx-6 lg:-mx-10 -mt-4 sm:-mt-6 lg:-mt-10 mb-10 px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 lg:pt-10 pb-5 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
            <div className="relative">
               <div className="flex items-center gap-3 text-teal-600 mb-2">
                  <ShieldCheck size={14} />

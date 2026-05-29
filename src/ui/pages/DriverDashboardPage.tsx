@@ -123,6 +123,12 @@ export const DriverDashboardPage: React.FC = () => {
   }, [token, user?.email]);
 
   const handleLogout = useCallback(() => {
+    const confirmLogout = window.confirm(
+      "¿Estás seguro de que deseas cerrar tu sesión?"
+    );
+
+    if (!confirmLogout) return;
+
     logout();
     navigate('/');
   }, [logout, navigate]);
@@ -179,11 +185,11 @@ export const DriverDashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-slate-100 touch-manipulation overscroll-none select-none font-sans relative">
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-100 touch-manipulation overscroll-none select-none font-sans relative">
       
       {/* Header - Hidden in Map View to maximize space */}
       {view !== 'map' && (
-        <header className="bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-4 shrink-0 z-30 shadow-sm">
+        <header className="flex-none sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-4 shadow-sm">
           <div className="max-w-md mx-auto flex justify-between items-center">
             <div className="flex items-center gap-3">
                <div className="w-10 h-10 bg-green-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-200 text-white">
@@ -202,7 +208,7 @@ export const DriverDashboardPage: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className={`w-full relative ${view === 'map' ? 'h-[calc(100vh-80px)] overflow-hidden' : 'h-[calc(100vh-80px)] overflow-y-auto pb-28 overscroll-none'}`}>
+      <main className={`flex-1 min-h-0 w-full relative touch-manipulation ${view === 'map' ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain pb-28'}`}>
         <div className={view === 'map' ? 'absolute inset-0' : 'max-w-md mx-auto p-5 space-y-6'}>
           
           {/* User Welcome - Only in Summary View */}
